@@ -3,38 +3,78 @@
 #include <stdbool.h>
 #include <string.h>
 
-void replace_space_with_char(char* buf, char replacement){
-  char* iter = buf;
-  // iterate through buffer
-  while (*iter != '\0'){
-    if (*iter == ' '){
-      // replace " " with replacement
-      *iter = replacement;
-    }
-    iter++;
-  }
-}
-
 bool get_str_following_command(char* line, char* command, char* dst){
-  int len_command = strlen(command);
-  int len_line = strlen(line);
-  char last_letter = command[len_command - 1];
   char* iter = line;
+  int len_line = strlen(line);
+  int len_command = strlen(command);
+  char last_letter = command[len_command - 1];
+  int idx = 0;
 
-  // skip to first character following the command
-  while (*(iter++) != last_letter); // skips the first whitespace after the command
+  while (*iter != last_letter){
+    iter++;
+    idx++;
+  }
+  iter++; // move past command
+  idx++;
 
-  if (*iter == '\n'){
-    // empty command
+  // now iter is at first letter beyond command
+
+  bool has_non_ws = false; // is stream full of whitespaces and/or newlines
+
+  // check whether line is just full of whitespaces and/or newlines
+  char* temp = iter;
+
+  int i = idx;
+  while (i < len_line){
+    char curchar = *temp;
+    
+    if (curchar == '\0'){
+      // better to be safe than sorry
+      break;
+    }
+
+    if (curchar != ' ' && curchar != '\n'){
+      // found parse-able token. break.
+      // printf("Curchar is '%c' (ASCII %d)\n", curchar, curchar);
+      has_non_ws = true;
+      break;
+    }
+    temp++;
+    i++;
+  }
+
+  if (!has_non_ws){
     return false;
   }
 
-  while (*(iter++) != '\n'){
-    // copy string following the "open " pattern
-    *(dst++) = *iter;
+  // line has parse-able information
+
+  // skip whitespace
+  while (*iter == ' '){
+    iter++;
   }
 
-  *dst = '\0'; // null-terminate buffer
+  // process & copy input from line into dst
+  while (idx < len_line){
+    if (*iter == '\n'){
+      // don't copy newline into dst. Terminate dst instead & break
+      *dst = '\0';
+      break;
+    }
+    if (*iter == ' '){
+      // replace all instances of " " with " "
+      *dst = '_';
+    }
+    else{
+       *dst = *iter;
+    }
+    idx++;
+    iter++;
+    dst++;
+  }
   
+  // replace newline
+
   return true;
 }
+

@@ -1,4 +1,5 @@
 #include "input_handling.h"
+#include "dir.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -22,10 +23,8 @@ int main(){
     // open directory
     if (strstr(line, "open")){
       if (get_str_following_command(line, "open", dir)){
-        replace_space_with_char(dir, '_'); // sanitize directory name
-        if (strlen(dir) > 0){
-          printf("Extraced filename: %s\n", dir);
-        }
+        printf("Extraced filename: '%s'", dir);
+      
          
       };
     }
