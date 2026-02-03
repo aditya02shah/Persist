@@ -1,2 +1,16 @@
-make:
-	cc main.c -o main
+CC = gcc
+CFLAGS = -Wall -Iinclude
+
+SRC = src/main.c src/input_handling.c
+OBJ = $(SRC:.c=.o)  # converts src/db.c -> src/db.o
+
+TARGET = main
+
+$(TARGET): $(OBJ)
+	$(CC) $(OBJ) -o $(TARGET)
+
+src/%.o: src/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f src/*.o $(TARGET)

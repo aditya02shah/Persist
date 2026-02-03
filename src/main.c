@@ -16,15 +16,14 @@ int main(){
   // get user input 
   while ((nread = getline(&line, &size, stdin)) != -1){
     char dir[BUF_SIZE]; // should be strdup'd to avoid bugs
-    printf("Retrieved line of length %zd:\n", nread);
+    // printf("Retrieved line of length %zd:\n", nread);
     fwrite(line, nread, 1, stdout);
 
     // open directory
     if (strstr(line, "open")){
       if (get_str_following_command(line, "open", dir)){
         replace_space_with_char(dir, '_'); // sanitize directory name
-        printf("Dir: %s\n", dir);
-        if (strlen(dir)!= 0){
+        if (strlen(dir) > 0){
           printf("Extraced filename: %s\n", dir);
         }
          
