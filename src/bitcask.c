@@ -6,13 +6,19 @@
 #include <string.h>
 #define BUF_SIZE 50
 
+void handle_open_request(char* dir){
+  bool dir_exists = does_dir_exit(dir);
+
+  if (!dir_exists){
+    create_dir(dir);
+  }
+}
+
 int main(){
   // handle user input
   size_t size = BUF_SIZE;
   char* line = malloc(size * sizeof(char));
   ssize_t nread;
-
-  char* substr = NULL;
 
   // get user input 
   while ((nread = getline(&line, &size, stdin)) != -1){
@@ -23,9 +29,7 @@ int main(){
     // open directory
     if (strstr(line, "open")){
       if (get_str_following_command(line, "open", dir)){
-        printf("Extraced filename: '%s'", dir);
-      
-         
+        handle_open_request(dir);
       };
     }
   

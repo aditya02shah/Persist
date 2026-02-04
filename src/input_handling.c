@@ -72,8 +72,6 @@ bool get_str_following_command(char* line, char* command, char* dst){
     iter++;
     dst++;
   }
-  
-  // replace newline
 
   return true;
 }
