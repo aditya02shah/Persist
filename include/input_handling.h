@@ -11,4 +11,7 @@ void replace_char1_with_char2(char* buf, char char1, char char2);
  */
 bool get_str_following_command(char* line, char* command, char* dst);
 
+/* Checks whether command is followed by only whitespace and newline characters */
+bool is_not_empty_command(char* line, char* command);
+
 #endif

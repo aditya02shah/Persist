@@ -76,3 +76,40 @@ bool get_str_following_command(char* line, char* command, char* dst){
   return true;
 }
 
+bool is_not_empty_command(char* line, char* command){
+  char* iter = line;
+  int len_line = strlen(line);
+  int len_command = strlen(command);
+  char last_letter = command[len_command - 1];
+  int idx = 0;
+  bool has_non_ws = false;
+
+  while (*iter != last_letter){
+    iter++;
+    idx++;
+  }
+  iter++; // move past command
+  idx++;
+
+  char* temp = iter;
+
+  int i = idx;
+  while (i < len_line){
+    char curchar = *temp;
+    
+    if (curchar == '\0'){
+      // better to be safe than sorry
+      break;
+    }
+
+    if (curchar != ' ' && curchar != '\n'){
+      // found parse-able token. break.
+      has_non_ws = true;
+      break;
+    }
+    temp++;
+    i++;
+  }
+
+  return has_non_ws;
+}
