@@ -1,5 +1,4 @@
 #include "robust.h"
-#include <stdio.h>
 
 FILE* Fopen(char* fname, char* mode){
   FILE* fp = fopen(fname, mode);

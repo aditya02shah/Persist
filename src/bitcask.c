@@ -1,6 +1,7 @@
 #include "bitcask.h"
 #include "input_handling.h"
 #include "dir.h"
+#include "robust.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -56,18 +57,25 @@ void setup_dir(char* dir, int* p_file_idx){
 
 void handle_put_request(char* dir, int* p_file_idx, obj* o){
   // setup .metadata file
-  setup_dir(char* dir, int* p_file_idx);
+  setup_dir(dir, p_file_idx);
+  printf("Setup directory!\n");
 
   // get current file size
   int obj_size = o->num_bytes;
   char fname[FILE_NAME_LIMIT];
   sprintf(fname, "%s/file_%d", dir, *p_file_idx);
-  unsigned long fsize = get_filesize(fname);
+  unsigned long fsize = 0;
+
+  if (*p_file_idx !=0 ){
+    // get file size if a file exists
+    fsize = get_filesize(fname);
+  }
+
   fsize += obj_size;
 
   FILE* fp = NULL;
   // check file size
-  if (fsize > FILE_SIZE){
+  if ((*p_file_idx != 0) && (fsize > FILE_SIZE)){
     // cannot write object to current file
     (*p_file_idx)++; // increment file_idx
 
@@ -75,7 +83,7 @@ void handle_put_request(char* dir, int* p_file_idx, obj* o){
     sprintf(fname, "%s/%s", dir, ".metadata");
     fp = Fopen(fname, "w");
     Fwrite(p_file_idx, sizeof(int), 1, fp);
-    fclose(p);
+    fclose(fp);
 
     sprintf(fname, "%s/file_%d", dir, *p_file_idx); // reset fname
   }
@@ -84,8 +92,8 @@ void handle_put_request(char* dir, int* p_file_idx, obj* o){
   fp = Fopen(fname, "ab");
 
   // write data to file
-  Fwrite(o->num_bytes, sizeof(byte), 1, fp);
-  Fwrite(o->data, sizeof(byte), o->num_bytes, fp);
+  Fwrite((void*)&o->num_bytes, sizeof(byte), 1, fp);
+  Fwrite((void*)&(o->data), sizeof(byte), o->num_bytes, fp);
 
   // close open
   fclose(fp);
@@ -99,7 +107,7 @@ int main(){
   char dir[BUF_SIZE];
   bool dir_opened = false;
   
-  // handle file R/W
+  // store data for cur dir
   int file_idx = -1;
   FILE* fp = NULL; // current file handler
 
@@ -126,9 +134,9 @@ int main(){
         if (is_not_empty_command(line, "put")){
           // convert request into bytes
           obj newobj;
-          newobj.num_bytes = bytes_read;
-          newobj.data = (byte*)buf; // buf is overwritten in next iteration, but we write to file
-          handle_put_request(dir, &file_idx);
+          newobj.num_bytes = nread;
+          newobj.data = (byte*)line; // buf is overwritten in next iteration, but we write to file
+          handle_put_request(dir, &file_idx, &newobj);
         }
       }
     }
