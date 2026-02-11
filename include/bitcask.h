@@ -25,9 +25,9 @@ typedef struct s_keydir_entry keydir_entry;
 
 // representation of file entry
 struct s_file_entry{
-    byte timestamp[4];
-    byte key_size[4];
-    byte value_size[4];
+    int timestamp;
+    int key_size;
+    int value_size;
     obj key;
     obj value;
 };
