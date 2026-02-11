@@ -3,7 +3,7 @@
 #define BITCASK_H
 #define FILE_NAME_LIMIT 40
 #define BUF_SIZE 50
-#define FILE_SIZE 1024 // 1 GB
+#define FILE_SIZE (1024) // 1 KB
 typedef uint8_t byte;
 
 // representation of obj - a length-prefixed byte array

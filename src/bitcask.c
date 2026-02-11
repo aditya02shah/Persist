@@ -8,7 +8,9 @@
 #include <string.h>
 #include <time.h>
 
+/* functionality to display things */
 void display_obj(obj* o){
+  // display an object
   printf("Obj is %d bytes long\n", o->num_bytes);
   byte* temp = o->data;
   int i = 0;
@@ -21,6 +23,7 @@ void display_obj(obj* o){
 }
 
 void display_file_entry(file_entry* f){
+  // display a file entry
   printf("Timestamp: %d\tKey Size:%d\tValue Size:%d\n", f->timestamp, f->key_size, f->value_size);
   printf("Key details: \n");
   display_obj(&(f->key));
@@ -28,81 +31,19 @@ void display_file_entry(file_entry* f){
   display_obj(&(f->value));
   printf("\n");
 }
+/*------------------------------------------------------------------------------------------------*/
 
+/* functionality to setup things before processing */
 void handle_open_request(char* dir){
+  // create directory if it doesnt exist
   bool dir_exists = does_dir_exist(dir);
-
   if (!dir_exists){
     create_dir(dir);
   }
 }
 
-int create_entry(char* line, ssize_t bytes_read, file_entry* f){
-  f->timestamp = (int)time(NULL);
-
-  int entry_sz = 0; // in bytes
-
-  ssize_t i = 0;
-  char* iter = line;
-  char* key_offset = NULL;
-  char* value_offset = NULL;
-
-  // skip leading whitespace(s)
-  while (*iter == ' '){
-    if (i == bytes_read){
-      return -1;
-    }
-    iter++;
-  }
-
-  // we are at key
-  int key_sz = 0;
-  key_offset = iter;
-  while (*iter != ' '){
-    if (i == bytes_read){
-      return -1;
-    }
-    iter++;
-    key_sz++;
-  }
-
-  // we are at the space(s) separating key and value
-   while (*iter == ' '){
-    if (i == bytes_read){
-      return -1;
-    }
-    iter++;
-  }
-
-  // we are at value
-  int value_sz = 0;
-  value_offset = iter;
-
-  while (*iter != '\n'){
-    if (i == bytes_read){
-      break;
-    }
-    iter++;
-    value_sz++;
-  }
-
-  // set file_entry fields
-  f->key_size = key_sz;
-  f->value_size = value_sz;
-
-  f->key.num_bytes = key_sz;
-  f->key.data = (byte*)key_offset;
-
-  f->value.num_bytes = value_sz;
-  f->value.data = (byte*)value_offset;
-
-  entry_sz = (sizeof(int) * 5) + (f->key_size + f->value_size);
-
-  display_file_entry(f);
-  return entry_sz;
-}
-
 void setup_dir(char* dir, int* p_file_idx){
+  // setups directory with .metadata file, and latest file index
   char fname[FILE_NAME_LIMIT];
   FILE* f = NULL;
   
@@ -122,14 +63,93 @@ void setup_dir(char* dir, int* p_file_idx){
   fclose(f);
 }
 
+int create_entry(char* line, ssize_t bytes_read, file_entry* f){
+  // create a file_entry, and fill it with information from the line buf
+  // returns -1 if input is in invalid format, size of entry otherwise
+
+  f->timestamp = (int)time(NULL);
+
+  int entry_sz = 0; // in bytes
+
+  ssize_t i = 0; // helps with input validation
+  char* iter = line;
+  char* key_offset = NULL;
+  char* value_offset = NULL;
+
+  // skip leading whitespace(s)
+  while (*iter == ' '){
+    if (i == bytes_read){
+      // end of input - terminate
+      return -1;
+    }
+    iter++;
+    i++;
+  }
+
+  // we are at key
+  int key_sz = 0;
+  key_offset = iter;
+  while (*iter != ' '){
+    if (i == bytes_read){
+      // end of input - terminate
+      return -1;
+    }
+    iter++;
+    key_sz++;
+    i++;
+  }
+
+  // we are at the space(s) separating key and value
+   while (*iter == ' '){
+    if (i == bytes_read){
+      // end of input - terminate
+      return -1;
+    }
+    iter++;
+    i++;
+  }
+
+  // we are at value
+  int value_sz = 0;
+  value_offset = iter;
+
+  while (*iter != '\n'){
+    if (i == bytes_read){
+      // end of input - break
+      break;
+    }
+    iter++;
+    value_sz++;
+    i++;
+  }
+
+  // set file_entry fields
+  f->key_size = key_sz;
+  f->value_size = value_sz;
+
+  f->key.num_bytes = key_sz;
+  f->key.data = (byte*)key_offset;
+
+  f->value.num_bytes = value_sz;
+  f->value.data = (byte*)value_offset;
+
+  entry_sz = (sizeof(int) * 5) + (f->key_size + f->value_size);
+  // display_file_entry(f);
+
+  return entry_sz;
+}
+/*------------------------------------------------------------------------------------------------*/
+
+/* functionality to handle requests */
 void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfile_idx){
-  // extract key and value from input
+
+  // create file entry from input
   file_entry f;
   int entry_sz = create_entry(line, bytes_read, &f);
   if (entry_sz == -1){
-    printf("scanning entry failed!\n");
+    printf("Invalid input: Enter kv pair in <key>ws<value> format!\n");
+    return;
   }
-  printf("Created entry of size %d!\n", entry_sz);
   
   // setup .metadata file
   setup_dir(dir, p_curfile_idx);
@@ -148,7 +168,7 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
 
   FILE* fp = NULL;
   // check file size
-  if (fsize > FILE_SIZE){
+  if (fsize > (unsigned long)FILE_SIZE){
     // cannot write object to current file
     (*p_curfile_idx)++; // increment file_idx
 
@@ -165,8 +185,6 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
   fp = Fopen(fname, "ab");
 
   // write data to file
-  // Fwrite((void*)&o->num_bytes, sizeof(byte), 1, fp);
-  // Fwrite((void*)&(o->data), sizeof(byte), o->num_bytes, fp);
   Fwrite((void*)&(f.timestamp), sizeof(int), 1, fp);
   Fwrite((void*)&(f.key_size), sizeof(int), 1, fp);
   Fwrite((void*)&(f.value_size), sizeof(int), 1, fp);
@@ -175,12 +193,12 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
   Fwrite((void*)&(f.value.num_bytes), sizeof(byte), 1, fp);
   Fwrite((void*)&(f.value.data), sizeof(byte), f.value.num_bytes, fp);
 
-  printf("Data written successfully\n");
-
   // close file
   fclose(fp);
 }
+/*------------------------------------------------------------------------------------------------*/
 
+/* interactive loop to get user input */
 int main(){
   // handle user input
   size_t size = BUF_SIZE;
@@ -194,8 +212,9 @@ int main(){
 
   // get user input 
   while ((nread = getline(&line, &size, stdin)) != -1){
-    printf("Retrieved line of length %zd:\n", nread);
-    // fwrite(line, nread, 1, stdout);
+    // for debugging
+    /* printf("Retrieved line of length %zd:\n", nread);
+       fwrite(line, nread, 1, stdout); */
 
     // open directory
     if (strstr(line, "open")){
@@ -220,12 +239,12 @@ int main(){
   
     // exit cli
     if (strcmp(line, "exit\n") == 0){
+      printf("Exiting db!\n");
       break;
     }
   }
 
   free(line);
-
-  printf("Exiting db!\n");
+  
   return 0;
 }

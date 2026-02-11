@@ -11,7 +11,7 @@
 unsigned long get_filesize(char* file)
 {
   // Source - https://stackoverflow.com/a/8247
-    FILE * f = Fopen(file, "r");
+    FILE * f = Fopen(file, "rb");
     fseek(f, 0, SEEK_END);
     unsigned long len = (unsigned long)ftell(f);
     fclose(f);
