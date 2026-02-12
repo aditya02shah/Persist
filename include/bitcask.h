@@ -1,4 +1,5 @@
 #ifndef BITCASK_H
+
 #include <stdint.h>
 #define BITCASK_H
 #define FILE_NAME_LIMIT 40
@@ -6,6 +7,7 @@
 #define FILE_SIZE (1024) // 1 KB
 typedef uint8_t byte;
 
+/*------------------------------------------------------------------------------------------------*/
 // representation of obj - a length-prefixed byte array
 struct s_obj{
   int num_bytes;
@@ -24,7 +26,10 @@ struct s_file_entry{
 };
 typedef struct s_file_entry file_entry;
 
-/* functionality */
+/*------------------------------------------------------------------------------------------------*/
+
+/* displays the obj */
 void display_obj(obj* o);
+/*------------------------------------------------------------------------------------------------*/
 
 #endif

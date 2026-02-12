@@ -10,7 +10,7 @@
 
 unsigned long get_filesize(char* file)
 {
-  // Source - https://stackoverflow.com/a/8247
+  // ref - https://stackoverflow.com/a/8247
     FILE * f = Fopen(file, "rb");
     fseek(f, 0, SEEK_END);
     unsigned long len = (unsigned long)ftell(f);
@@ -21,6 +21,7 @@ unsigned long get_filesize(char* file)
 bool does_file_exist(char* name){
   FILE* fp = fopen(name, "r");
   if (fp != NULL){
+    // file exists
     fclose(fp);
     return true;
   }
@@ -30,6 +31,7 @@ bool does_file_exist(char* name){
 bool does_dir_exist(char* name){
   struct stat sb;
   if (stat(name, &sb) == 0 && S_ISDIR(sb.st_mode)){
+    // dir exists
     return true;
   }
   return false;
@@ -41,7 +43,7 @@ bool create_dir(char* name){
   status = mkdir(name, 0700);
   
   if (status != 0){
-    perror("mkdir failed");
+    printf("mkdir failed");
   }
 
   return status;
