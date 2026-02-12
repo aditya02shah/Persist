@@ -1,4 +1,5 @@
 #include "bitcask.h"
+#include "hashmap.h"
 #include "input_handling.h"
 #include "dir.h"
 #include "robust.h"
@@ -11,15 +12,15 @@
 /* functionality to display things */
 void display_obj(obj* o){
   // display an object
-  printf("Obj is %d bytes long\n", o->num_bytes);
+  // printf("Obj is %d bytes long: ", o->num_bytes);
   byte* temp = o->data;
   int i = 0;
   while (i < o->num_bytes){
-    printf("%c ", *temp);
+    printf("%c", *temp);
     temp++;
     i++;
   }
-  printf("\n");
+  printf("\t");
 }
 
 void display_file_entry(file_entry* f){
@@ -67,7 +68,7 @@ int create_entry(char* line, ssize_t bytes_read, file_entry* f){
   // create a file_entry, and fill it with information from the line buf
   // returns -1 if input is in invalid format, size of entry otherwise
 
-  f->timestamp = (int)time(NULL);
+  f->timestamp = time(NULL);
 
   int entry_sz = 0; // in bytes
 
@@ -141,13 +142,14 @@ int create_entry(char* line, ssize_t bytes_read, file_entry* f){
 /*------------------------------------------------------------------------------------------------*/
 
 /* functionality to handle requests */
-void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfile_idx){
+void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfile_idx, hashmap* h){
 
   // create file entry from input
   file_entry f;
   int entry_sz = create_entry(line, bytes_read, &f);
   if (entry_sz == -1){
-    printf("Invalid input: Enter kv pair in <key>ws<value> format!\n");
+    printf("Invalid input: Enter as put <key> <value>\n");
+    printf("Example: put name xyz\n");
     return;
   }
   
@@ -190,11 +192,24 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
   Fwrite((void*)&(f.value_size), sizeof(int), 1, fp);
   Fwrite((void*)&(f.key.num_bytes), sizeof(byte), 1, fp);
   Fwrite((void*)&(f.key.data), sizeof(byte), f.key.num_bytes, fp);
+  long pos = ftell(fp); // store offset (stored in keydir for fast reads)
   Fwrite((void*)&(f.value.num_bytes), sizeof(byte), 1, fp);
   Fwrite((void*)&(f.value.data), sizeof(byte), f.value.num_bytes, fp);
 
   // close file
   fclose(fp);
+
+  // create entry for hash table
+  keydir_entry entry;
+  entry.file_id = *p_curfile_idx;
+  entry.value_size = f.value_size;
+  entry.value_pos = pos;
+  entry.timestamp = f.timestamp;
+
+  // add entry to keydir
+  add_entry(h, &entry, &(f.key));
+  display_hashmap(h);
+
 }
 /*------------------------------------------------------------------------------------------------*/
 
@@ -209,6 +224,11 @@ int main(){
   
   // store data for cur dir
   int file_idx = -1;
+
+  // instantiate the keydir(in-memory hashmap)
+  int map_size = 100;
+  float threshold = 0.8;
+  hashmap* h = create_hashmap(map_size, threshold);
 
   // get user input 
   while ((nread = getline(&line, &size, stdin)) != -1){
@@ -232,7 +252,8 @@ int main(){
       }
       else{
         if (is_not_empty_command(line, "put")){
-          handle_put_request(line, nread, dir, &file_idx);
+          char* occurence = ((char*)strstr(line, "put")) + strlen("put");
+          handle_put_request(occurence, nread, dir, &file_idx, h);
         }
       }
     }
@@ -244,7 +265,9 @@ int main(){
     }
   }
 
+  // free dynamically allocated memory
   free(line);
+  free_hashmap(h);
   
   return 0;
 }

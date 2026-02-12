@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Iinclude
 
-SRC = src/bitcask.c src/input_handling.c src/dir.c src/robust.c 
+SRC = src/bitcask.c src/input_handling.c src/dir.c src/robust.c src/hashmap.c
 OBJ = $(SRC:.c=.o)  # converts src/db.c -> src/db.o
 
 TARGET = main

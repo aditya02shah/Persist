@@ -21,3 +21,19 @@ void Fwrite(void* buf, size_t size, size_t num_ele, FILE* fp){
     printf("Error writing to file!\n");
   }
 }
+
+void* Malloc(size_t size){
+  void* p = (void*) malloc(size);
+  if (p == NULL){
+    printf("Malloc failed: ");
+  }
+  return p;
+}
+
+void* Calloc(size_t num_ele, size_t ele_size){
+  void* p = (void*) calloc(num_ele, ele_size);
+  if (p == NULL){
+    printf("Calloc failed: ");
+  }
+  return p;
+}

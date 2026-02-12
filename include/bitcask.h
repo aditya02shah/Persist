@@ -14,15 +14,6 @@ struct s_obj{
 };
 typedef struct s_obj obj;
 
-// representation of keydir (an in memory hashmap) entry
-struct s_keydir_entry{
-    int file_id;
-    int value_size;
-    int value_pos;
-    int timestamp;
-};
-typedef struct s_keydir_entry keydir_entry;
-
 // representation of file entry
 struct s_file_entry{
     int timestamp;
@@ -32,5 +23,8 @@ struct s_file_entry{
     obj value;
 };
 typedef struct s_file_entry file_entry;
+
+/* functionality */
+void display_obj(obj* o);
 
 #endif
