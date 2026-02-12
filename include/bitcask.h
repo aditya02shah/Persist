@@ -11,8 +11,7 @@ typedef uint8_t byte;
 // representation of obj - a length-prefixed byte array
 struct s_obj{
   int num_bytes;
-  byte* data;
-//   byte data[];
+  byte* data; // dynamically allocate if necessary
 };
 typedef struct s_obj obj;
 
