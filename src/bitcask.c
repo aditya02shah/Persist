@@ -51,12 +51,12 @@ void setup_dir(char* dir, int* p_file_idx){
   // if .metadata file exists, read current file_idx from it
   sprintf(fname, "%s/%s", dir, ".metadata");
   if (does_file_exist(fname)){
-    f = Fopen(fname, "r");
+    f = Fopen(fname, "rb");
     Fread(p_file_idx, sizeof(int), 1, f);
   }
   else{
     // create .metadata file if it doesnt exist
-    f = Fopen(fname, "w");
+    f = Fopen(fname, "wb");
     (*p_file_idx)++;
     Fwrite(p_file_idx, sizeof(int), 1, f);
   }
@@ -71,7 +71,6 @@ int create_entry(char* line, ssize_t bytes_read, file_entry* f){
   f->timestamp = time(NULL);
 
   int entry_sz = 0; // in bytes
-
   ssize_t i = 0; // helps with input validation
   char* iter = line;
   char* key_offset = NULL;
@@ -165,7 +164,6 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
     // get file size if the file exists
     fsize = get_filesize(fname);
   }
-
   fsize += entry_sz;
 
   FILE* fp = NULL;
@@ -176,7 +174,7 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
 
     // update .metadata file with new file_idx
     sprintf(fname, "%s/%s", dir, ".metadata");
-    fp = Fopen(fname, "w");
+    fp = Fopen(fname, "wb");
     Fwrite(p_curfile_idx, sizeof(int), 1, fp);
     fclose(fp);
 
@@ -190,11 +188,9 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
   Fwrite((void*)&(f.timestamp), sizeof(int), 1, fp);
   Fwrite((void*)&(f.key_size), sizeof(int), 1, fp);
   Fwrite((void*)&(f.value_size), sizeof(int), 1, fp);
-  Fwrite((void*)&(f.key.num_bytes), sizeof(byte), 1, fp);
-  Fwrite((void*)&(f.key.data), sizeof(byte), f.key.num_bytes, fp);
-  long pos = ftell(fp); // store offset (stored in keydir for fast reads)
-  Fwrite((void*)&(f.value.num_bytes), sizeof(byte), 1, fp);
-  Fwrite((void*)&(f.value.data), sizeof(byte), f.value.num_bytes, fp);
+  Fwrite((void*)(f.key.data), sizeof(byte), f.key.num_bytes, fp);
+  long pos = Ftell(fp); // store offset (stored in keydir for fast reads)
+  Fwrite((void*)(f.value.data), sizeof(byte), f.value.num_bytes, fp);
 
   // close file
   fclose(fp);
@@ -210,6 +206,66 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
   add_entry(h, &entry, &(f.key));
   // display_hashmap(h);
 
+}
+
+bool handle_get_request(char* line, ssize_t bytes_read, char* dir, hashmap* h, obj* value){
+  // parse input
+  char* iter = line;
+  char* key_offset = NULL;
+
+  // skip whitespaces
+  while (*iter == ' '){
+    iter++;
+  }
+
+  // we are at key
+  int key_sz = 0;
+  key_offset = iter;
+  while (*iter != '\n'){
+    iter++;
+    key_sz++;
+  }
+
+  // store key
+  obj key;
+  key.data = (byte*)key_offset;
+  key.num_bytes = key_sz;
+  // printf("Key is:\n");
+  // display_obj(&key);
+
+  keydir_entry* entry = get_entry(h, &key);
+  if (!entry){
+    printf("Entry doesn't exist!\n");
+    return false;
+  }
+
+  // fetch information from entry
+  int file_id = entry->file_id;
+  int value_size = entry->value_size;
+  long value_pos = entry->value_pos;
+  time_t timestamp = entry->timestamp;
+
+  // check whether file exists
+  char fname[FILE_NAME_LIMIT];
+  sprintf(fname, "%s/file_%d", dir, file_id);
+
+  if (!does_file_exist(fname)){
+    printf("Invalid entry!\n");
+    return false;
+  }
+
+  // open file
+  FILE* fp = Fopen(fname, "rb");
+
+  // setup value obj
+  value->num_bytes = value_size;
+  value->data = Malloc(value_size * sizeof(byte));
+
+  // read value
+  Fseek(fp, value_pos, SEEK_SET);
+  Fread((void*)(value->data), sizeof(byte), value_size, fp);
+
+  return true;
 }
 /*------------------------------------------------------------------------------------------------*/
 
@@ -245,7 +301,7 @@ int main(){
       };
     }
 
-    // put directory
+    // put entry
     if (strstr(line, "put")){
       if (!dir_opened){
         printf("No directory selected!\n");
@@ -254,6 +310,27 @@ int main(){
         if (is_not_empty_command(line, "put")){
           char* occurence = ((char*)strstr(line, "put")) + strlen("put");
           handle_put_request(occurence, nread, dir, &file_idx, h);
+        }
+      }
+    }
+
+    // get entry
+    if (strstr(line, "get")){
+      if (!dir_opened){
+        printf("No directory selected!\n");
+      }
+      else{
+        if (is_not_empty_command(line, "get")){
+          char* occurence = ((char*)strstr(line, "get")) + strlen("get");
+          obj value;
+          if (handle_get_request(occurence, nread, dir, h, &value)){
+            // for debugging
+            // printf("Value is:\n");
+            // display_obj(&value);
+            // printf("\n");
+            free(value.data);
+          };
+          
         }
       }
     }

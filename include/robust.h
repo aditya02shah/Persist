@@ -12,7 +12,8 @@ void Fwrite(void* buf, size_t size, size_t num_ele, FILE* fp);
 void* Malloc(size_t size);
 void* Calloc(size_t num_ele, size_t ele_size);
 void* Realloc(void* ptr, size_t size);
-
+long Ftell(FILE* fp);
+void Fseek(FILE* fp, long offset, int mode);
 /*------------------------------------------------------------------------------------------------*/
 
 #endif

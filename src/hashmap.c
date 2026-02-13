@@ -123,7 +123,6 @@ hashmap* create_hashmap(int capacity, float threshold){
 }
 
 void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
-
   // compute hash from key
   uint32_t hash = fnv1a_hash(key->data, key->num_bytes);
 
@@ -164,6 +163,25 @@ void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
   if (fabs(curusage - h->threshold) < 1e-9) {
     expand_hashmap(h);
   }
+}
+
+keydir_entry* get_entry(hashmap* h, obj* key){
+   // compute hash from key
+  uint32_t hash = fnv1a_hash(key->data, key->num_bytes);
+
+  // determine position
+  int start = hash % h->capacity;
+  int idx = start;
+
+  while (!keys_are_equal(key, &(h->map[idx].key))){
+    idx = (idx + 1) % h->capacity;
+    if (idx == start){
+      // entry doesn't exist
+      return NULL;
+    }
+  }
+
+  return &(h->map[idx].entry);
 }
 
 void free_hashmap(hashmap* h){

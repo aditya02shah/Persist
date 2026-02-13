@@ -48,6 +48,9 @@ void display_hashmap(hashmap* h);
 /* add entry to hashmap */
 void add_entry(hashmap* h, keydir_entry* entry, obj* key);
 
+/* returns keydir entry if key is present in hashmap, NULL otherwise */
+keydir_entry* get_entry(hashmap* h, obj* key);
+
 /* free all dynamically allocated memory used by the hashmap */
 void free_hashmap(hashmap* h);
 
