@@ -1,4 +1,4 @@
-#include "bitcask.h"
+#include "persist.h"
 #include "hashmap.h"
 #include "input_handling.h"
 #include "dir.h"
@@ -10,9 +10,15 @@
 #include <time.h>
 
 /* functionality to display things */
-void display_obj(obj* o){
-  // display an object
+void display_obj(char* prefix, obj* o, char* suffix, bool display_length){
+
   // printf("Obj is %d bytes long: ", o->num_bytes);
+  if (prefix){
+      printf("%s ", prefix);
+  }
+  if (display_length){
+    printf("%d ", o->num_bytes);
+  }
   byte* temp = o->data;
   int i = 0;
   while (i < o->num_bytes){
@@ -20,16 +26,18 @@ void display_obj(obj* o){
     temp++;
     i++;
   }
-  printf("\t");
+ if (suffix){
+   printf("%s", suffix);
+ }
 }
 
 void display_file_entry(file_entry* f){
   // display a file entry
   printf("Timestamp: %d\tKey Size:%d\tValue Size:%d\n", f->timestamp, f->key_size, f->value_size);
   printf("Key details: \n");
-  display_obj(&(f->key));
+  display_obj(NULL, &(f->key), NULL, false);
   printf("Value details: \n");
-  display_obj(&(f->value));
+  display_obj(NULL, &(f->value), NULL, false);
   printf("\n");
 }
 /*------------------------------------------------------------------------------------------------*/
@@ -230,8 +238,6 @@ bool handle_get_request(char* line, ssize_t bytes_read, char* dir, hashmap* h, o
   obj key;
   key.data = (byte*)key_offset;
   key.num_bytes = key_sz;
-  // printf("Key is:\n");
-  // display_obj(&key);
 
   keydir_entry* entry = get_entry(h, &key);
   if (!entry){
@@ -326,8 +332,7 @@ int main(){
           if (handle_get_request(occurence, nread, dir, h, &value)){
             // for debugging
             // printf("Value is:\n");
-            // display_obj(&value);
-            // printf("\n");
+            display_obj("--->", &value, "\n", false);
             free(value.data);
           };
           

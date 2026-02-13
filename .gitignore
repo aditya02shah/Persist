@@ -1,4 +1,4 @@
 *.o
-main
+persist
 demo*/
 *.txt

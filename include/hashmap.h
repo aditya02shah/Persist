@@ -1,6 +1,6 @@
 #ifndef HASHMAP_H
 #define HASHMAP_H
-#include "bitcask.h"
+#include "persist.h"
 #include <stdbool.h>
 #include <time.h>
 

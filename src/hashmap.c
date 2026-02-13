@@ -1,5 +1,5 @@
 #include "hashmap.h"
-#include "bitcask.h"
+#include "persist.h"
 #include "robust.h"
 #include <string.h>
 #include <stdint.h>
@@ -24,7 +24,7 @@ void display_hashmap(hashmap* h){
     // if entry used
     if (h->map[i].used){
       printf("Key: ");
-      display_obj(&(h->map[i].key));
+      display_obj(NULL, &(h->map[i].key), "\t", false);
       printf(
         "FileID: %d\tValue Size:%d\tValue pos:%lu\tTimestamp:%s", 
         h->map[i].entry.file_id,

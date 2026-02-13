@@ -1,7 +1,8 @@
-#ifndef BITCASK_H
+#ifndef PERSIST_H
 
 #include <stdint.h>
-#define BITCASK_H
+#include <stdbool.h>
+#define PERSIST_H
 #define FILE_NAME_LIMIT 40
 #define BUF_SIZE 50
 #define FILE_SIZE (1024) // 1 KB
@@ -27,8 +28,9 @@ typedef struct s_file_entry file_entry;
 
 /*------------------------------------------------------------------------------------------------*/
 
-/* displays the obj */
-void display_obj(obj* o);
+/* displays an object as <prefix> <obj length> <obj data> <suffix> */
+/* prefix, suffix can be set to NULL, and display_length to false */
+void display_obj(char* prefix, obj* o, char* suffix, bool display_length);
 /*------------------------------------------------------------------------------------------------*/
 
 #endif
