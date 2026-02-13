@@ -226,8 +226,7 @@ int main(){
   int file_idx = -1;
 
   // instantiate the keydir(in-memory hashmap)
-  // int map_size = 100;
-  int map_size = 10;
+  int map_size = 100;
   float threshold = 0.8;
   hashmap* h = create_hashmap(map_size, threshold);
 

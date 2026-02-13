@@ -62,15 +62,20 @@ bool keys_are_equal(obj* key1, obj* key2){
 
 void expand_hashmap(hashmap* h){
   int org_capacity = h->capacity;
-  h->capacity *= 2;
-  h->cursize = 0;
+  h->capacity *= 2; // double capacity
+  h->cursize = 0;   // reset size
+
+  // allocate new memory
   hashmap_entry* newmap = (hashmap_entry*)Calloc(h->capacity, sizeof(hashmap_entry));
 
   // iterate through original map
   for (int i = 0; i < org_capacity; i++){
     if (h->map[i].used){
+      hashmap_entry* curslot = &(h->map[i]);
+      obj curkey = curslot->key;
+      keydir_entry curentry = curslot->entry;
       // copy entry into the new map
-      uint32_t hash = fnv1a_hash(h->map[i].key.data, h->map[i].key.num_bytes);
+      uint32_t hash = fnv1a_hash(curkey.data, curkey.num_bytes);
 
       // determine position
       int start = hash % h->capacity;
@@ -86,14 +91,11 @@ void expand_hashmap(hashmap* h){
         }
       }
 
+      // copy data from old slot 
       hashmap_entry* dst = &(newmap[idx]);
-      dst->key.num_bytes = h->map[i].key.num_bytes;
-
-      // check whether there something wrong here
-      // we dont free cause we copy malloced ptr
-      dst->key.data = h->map[i].key.data;
-      memcpy(&(dst->entry), &(h->map[i].entry), sizeof(keydir_entry));
-
+      dst->key.num_bytes = curkey.num_bytes;
+      dst->key.data = curkey.data;    // we dont free cause we copy the ptr to malloc'ed data
+      memcpy(&(dst->entry), &curentry, sizeof(keydir_entry));
       dst->used = true;
       h->cursize++;
     }
@@ -104,10 +106,7 @@ void expand_hashmap(hashmap* h){
   // update our ptr
   h->map = newmap;
 
-  printf("**Finished expanding hashmap! Displaying it!**\n");
-  display_hashmap(h);
-  printf("\n");
-
+  // display_hashmap(h);
 }
 /*------------------------------------------------------------------------------------------------*/
 
@@ -134,7 +133,7 @@ void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
 
   // linear probing
   while ((h->map[idx].used) && (!keys_are_equal(key, &(h->map[idx].key)))){
-    // if entry already used and key is not the same, look for the next unused one
+    // if slot already used and its key is not the same, go the next slot
     idx = (idx + 1) % h->capacity;
     if (idx == start) {
         printf("Hash table full!\n");
@@ -154,14 +153,15 @@ void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
   memcpy(&(dst->entry), new_entry, sizeof(keydir_entry));
 
   dst->used = true;
+
   if (!is_update){
+    // if key was added to new slot, increment cursize
     h->cursize++;
   }
 
   // expand hashmap if necessary
   float curusage = (float)h->cursize / h->capacity;
   if (fabs(curusage - h->threshold) < 1e-9) {
-    printf("Crossing hash table threshold!\n");
     expand_hashmap(h);
   }
 }
