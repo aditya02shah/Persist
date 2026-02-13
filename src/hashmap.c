@@ -7,7 +7,7 @@
 #include <math.h>
 
 /* helper functionality */
-uint32_t fnv1a_hash(const uint8_t *key, size_t len) {
+uint32_t fnv1a_hash(const uint8_t *key, size_t len){
   // ref - http://isthe.com/chongo/tech/comp/fnv/
 
   uint32_t hash = 2166136261u;
@@ -182,6 +182,29 @@ keydir_entry* get_entry(hashmap* h, obj* key){
   }
 
   return &(h->map[idx].entry);
+}
+
+bool delete_entry(hashmap* h, obj* key){
+   // compute hash from key
+  uint32_t hash = fnv1a_hash(key->data, key->num_bytes);
+
+  // determine position
+  int start = hash % h->capacity;
+  int idx = start;
+
+  while (!keys_are_equal(key, &(h->map[idx].key))){
+    idx = (idx + 1) % h->capacity;
+    if (idx == start){
+      // entry doesn't exist
+      return false;
+    }
+  }
+
+  h->map[idx].used = false;
+  free(h->map[idx].key.data);
+  h->cursize--;
+
+  return true;
 }
 
 void free_hashmap(hashmap* h){

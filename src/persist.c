@@ -149,22 +149,9 @@ int create_entry(char* line, size_t bytes_read, file_entry* f){
 
   return entry_sz;
 }
-/*------------------------------------------------------------------------------------------------*/
 
-/* functionality to handle requests */
-void handle_put_request(char* line, size_t bytes_read, char* dir, int* p_curfile_idx, hashmap* h){
-
-  // create file entry from input
-  file_entry f;
-  int entry_sz = create_entry(line, bytes_read, &f);
-  if (entry_sz == -1){
-    printf("Invalid input: Enter as put <key> <value>\n");
-    printf("Example: put name xyz\n");
-    return;
-  }
-  
-  // setup .metadata file
-  setup_dir(dir, p_curfile_idx);
+long write_to_file(file_entry* f,int entry_sz, char* dir, int* p_curfile_idx){
+  // writes entry to disk
 
   // get current file size
   char fname[FILE_NAME_LIMIT];
@@ -195,16 +182,53 @@ void handle_put_request(char* line, size_t bytes_read, char* dir, int* p_curfile
   // open file
   fp = Fopen(fname, "ab");
 
-  // write data to file
-  Fwrite((void*)&(f.timestamp), sizeof(int), 1, fp);
-  Fwrite((void*)&(f.key_size), sizeof(int), 1, fp);
-  Fwrite((void*)&(f.value_size), sizeof(int), 1, fp);
-  Fwrite((void*)(f.key_data), sizeof(byte), f.key_size, fp);
-  long pos = Ftell(fp); // store offset (stored in keydir for fast reads)
-  Fwrite((void*)(f.value_data), sizeof(byte), f.value_size, fp);
+  bool is_tombstone = false;
+  if (f->key_size == 0){
+    is_tombstone = true;
+  }
 
+  long pos = 0; // needed to add entry to keydir
+
+  // write data to file
+  if (is_tombstone){
+    Fwrite((void*)&(f->timestamp), sizeof(int), 1, fp);
+    Fwrite((void*)&(f->key_size), sizeof(int), 1, fp);
+    Fwrite((void*)&(f->value_size), sizeof(int), 1, fp);
+  }
+  else{
+    Fwrite((void*)&(f->timestamp), sizeof(int), 1, fp);
+    Fwrite((void*)&(f->key_size), sizeof(int), 1, fp);
+    Fwrite((void*)&(f->value_size), sizeof(int), 1, fp);
+    Fwrite((void*)(f->key_data), sizeof(byte), f->key_size, fp);
+    pos = Ftell(fp); // store offset (stored in keydir for fast reads)
+    Fwrite((void*)(f->value_data), sizeof(byte), f->value_size, fp);
+  }
+ 
   // close file
   fclose(fp);
+
+  return pos;
+}
+
+/*------------------------------------------------------------------------------------------------*/
+
+/* functionality to handle requests */
+void handle_put_request(char* line, size_t bytes_read, char* dir, int* p_curfile_idx, hashmap* h){
+
+  // create file entry from input
+  file_entry f;
+  int entry_sz = create_entry(line, bytes_read, &f);
+  if (entry_sz == -1){
+    printf("Invalid input: Enter as put <key> <value>\n");
+    printf("Example: put name xyz\n");
+    return;
+  }
+  
+  // setup .metadata file
+  setup_dir(dir, p_curfile_idx);
+
+  // write entry to file
+  long pos = write_to_file(&f, entry_sz, dir, p_curfile_idx);
 
   // create entry for hash table
   keydir_entry entry;
@@ -280,6 +304,48 @@ bool handle_get_request(char* line, size_t bytes_read, char* dir, hashmap* h, ob
 
   return true;
 }
+
+void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curfile_idx, hashmap* h){
+  // parse input
+  char* iter = line;
+  char* key_offset = NULL;
+
+  // skip whitespaces
+  while (*iter == ' '){
+    iter++;
+  }
+
+  // we are at key
+  int key_sz = 0;
+  key_offset = iter;
+  while (*iter != '\n'){
+    iter++;
+    key_sz++;
+  }
+
+  // store key
+  obj key;
+  key.data = (byte*)key_offset;
+  key.num_bytes = key_sz;
+
+  bool entry_exists = delete_entry(h, &key);
+  if (!entry_exists){
+    printf("Entry doesn't exist!\n");
+    return;
+  }
+
+  // write tombstone to file
+  // a tombstone is represented as an object of size 0, with its data ptr set to NULL
+  file_entry f;
+  f.timestamp = time(NULL);
+  f.key_size = 0;
+  f.value_size = 0;
+  f.key_data = NULL;
+  f.value_data = NULL;
+
+  int entry_sz = sizeof(int) * 3;
+  write_to_file(&f, entry_sz, dir, p_curfile_idx);
+}
 /*------------------------------------------------------------------------------------------------*/
 
 /* interactive loop to get user input */
@@ -342,6 +408,19 @@ int main(){
             free(value.data);
           };
           
+        }
+      }
+    }
+
+    // delete entry
+    if (strstr(line, "delete")){
+      if (!dir_opened){
+        printf("No directory selected!\n");
+      }
+      else{
+        if (is_not_empty_command(line, "delete")){
+          char* occurrence = ((char*)strstr(line, "delete")) + strlen("delete");
+          handle_delete_request(occurrence, nread, dir, &file_idx, h);
         }
       }
     }
