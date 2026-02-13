@@ -208,7 +208,7 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
 
   // add entry to keydir
   add_entry(h, &entry, &(f.key));
-  display_hashmap(h);
+  // display_hashmap(h);
 
 }
 /*------------------------------------------------------------------------------------------------*/
@@ -226,7 +226,8 @@ int main(){
   int file_idx = -1;
 
   // instantiate the keydir(in-memory hashmap)
-  int map_size = 100;
+  // int map_size = 100;
+  int map_size = 10;
   float threshold = 0.8;
   hashmap* h = create_hashmap(map_size, threshold);
 

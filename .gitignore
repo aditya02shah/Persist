@@ -1,3 +1,4 @@
 *.o
 main
 demo/
+*.txt

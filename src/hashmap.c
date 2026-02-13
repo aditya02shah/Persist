@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <math.h>
 
 /* helper functionality */
 uint32_t fnv1a_hash(const uint8_t *key, size_t len) {
@@ -25,7 +26,7 @@ void display_hashmap(hashmap* h){
       printf("Key: ");
       display_obj(&(h->map[i].key));
       printf(
-        "FileID: %d\tValue Size:%d\tValue pos:%lu\tTimestamp:%s\n", 
+        "FileID: %d\tValue Size:%d\tValue pos:%lu\tTimestamp:%s", 
         h->map[i].entry.file_id,
         h->map[i].entry.value_size,
         h->map[i].entry.value_pos,
@@ -58,6 +59,56 @@ bool keys_are_equal(obj* key1, obj* key2){
 
   return true;
 }
+
+void expand_hashmap(hashmap* h){
+  int org_capacity = h->capacity;
+  h->capacity *= 2;
+  h->cursize = 0;
+  hashmap_entry* newmap = (hashmap_entry*)Calloc(h->capacity, sizeof(hashmap_entry));
+
+  // iterate through original map
+  for (int i = 0; i < org_capacity; i++){
+    if (h->map[i].used){
+      // copy entry into the new map
+      uint32_t hash = fnv1a_hash(h->map[i].key.data, h->map[i].key.num_bytes);
+
+      // determine position
+      int start = hash % h->capacity;
+      int idx = start;
+
+      // linear probing
+      while (newmap[idx].used){
+        // if entry already used and key is not the same, look for the next unused one
+        idx = (idx + 1) % h->capacity;
+        if (idx == start) {
+            printf("Hash table full!\n");
+            return;
+        }
+      }
+
+      hashmap_entry* dst = &(newmap[idx]);
+      dst->key.num_bytes = h->map[i].key.num_bytes;
+
+      // check whether there something wrong here
+      // we dont free cause we copy malloced ptr
+      dst->key.data = h->map[i].key.data;
+      memcpy(&(dst->entry), &(h->map[i].entry), sizeof(keydir_entry));
+
+      dst->used = true;
+      h->cursize++;
+    }
+  }
+
+  // free old map
+  free(h->map);
+  // update our ptr
+  h->map = newmap;
+
+  printf("**Finished expanding hashmap! Displaying it!**\n");
+  display_hashmap(h);
+  printf("\n");
+
+}
 /*------------------------------------------------------------------------------------------------*/
 
 /* primary functionality */
@@ -73,6 +124,7 @@ hashmap* create_hashmap(int capacity, float threshold){
 }
 
 void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
+
   // compute hash from key
   uint32_t hash = fnv1a_hash(key->data, key->num_bytes);
 
@@ -89,6 +141,8 @@ void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
         return;
     }
   }
+
+  bool is_update = keys_are_equal(key, &(h->map[idx].key));
   
   // update entry
   hashmap_entry* dst = &(h->map[idx]);
@@ -100,7 +154,16 @@ void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
   memcpy(&(dst->entry), new_entry, sizeof(keydir_entry));
 
   dst->used = true;
-  h->cursize++;
+  if (!is_update){
+    h->cursize++;
+  }
+
+  // expand hashmap if necessary
+  float curusage = (float)h->cursize / h->capacity;
+  if (fabs(curusage - h->threshold) < 1e-9) {
+    printf("Crossing hash table threshold!\n");
+    expand_hashmap(h);
+  }
 }
 
 void free_hashmap(hashmap* h){

@@ -37,3 +37,15 @@ void* Calloc(size_t num_ele, size_t ele_size){
   }
   return p;
 }
+
+void* Realloc(void* ptr, size_t size){
+  if (size == 0){
+    printf("Invalid input to Realloc!\n");
+    return NULL;
+  }
+  void* p = (void*) realloc(ptr, size);
+  if (p == NULL){
+    printf("Calloc failed: ");
+  }
+  return p;
+}
