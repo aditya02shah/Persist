@@ -21,8 +21,8 @@ struct s_file_entry{
     int timestamp;
     int key_size;
     int value_size;
-    obj key;
-    obj value;
+    byte* key_data;
+    byte* value_data;
 };
 typedef struct s_file_entry file_entry;
 

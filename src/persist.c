@@ -35,9 +35,16 @@ void display_file_entry(file_entry* f){
   // display a file entry
   printf("Timestamp: %d\tKey Size:%d\tValue Size:%d\n", f->timestamp, f->key_size, f->value_size);
   printf("Key details: \n");
-  display_obj(NULL, &(f->key), NULL, false);
+  obj key;
+  key.num_bytes = f->key_size;
+  key.data = f->key_data;
+  display_obj(NULL, &key, NULL, false);
+
   printf("Value details: \n");
-  display_obj(NULL, &(f->value), NULL, false);
+  obj value;
+  value.num_bytes = f->value_size;
+  value.data = f->value_data;
+  display_obj(NULL, &value, NULL, false);
   printf("\n");
 }
 /*------------------------------------------------------------------------------------------------*/
@@ -72,14 +79,14 @@ void setup_dir(char* dir, int* p_file_idx){
   fclose(f);
 }
 
-int create_entry(char* line, ssize_t bytes_read, file_entry* f){
+int create_entry(char* line, size_t bytes_read, file_entry* f){
   // create a file_entry, and fill it with information from the line buf
   // returns -1 if input is in invalid format, size of entry otherwise
 
   f->timestamp = time(NULL);
 
   int entry_sz = 0; // in bytes
-  ssize_t i = 0; // helps with input validation
+  size_t i = 0; // helps with input validation
   char* iter = line;
   char* key_offset = NULL;
   char* value_offset = NULL;
@@ -134,14 +141,10 @@ int create_entry(char* line, ssize_t bytes_read, file_entry* f){
   // set file_entry fields
   f->key_size = key_sz;
   f->value_size = value_sz;
+  f->key_data = (byte*)key_offset;
+  f->value_data = (byte*)value_offset;
 
-  f->key.num_bytes = key_sz;
-  f->key.data = (byte*)key_offset;
-
-  f->value.num_bytes = value_sz;
-  f->value.data = (byte*)value_offset;
-
-  entry_sz = (sizeof(int) * 5) + (f->key_size + f->value_size);
+  entry_sz = (sizeof(int) * 3) + (f->key_size + f->value_size);
   // display_file_entry(f);
 
   return entry_sz;
@@ -149,7 +152,7 @@ int create_entry(char* line, ssize_t bytes_read, file_entry* f){
 /*------------------------------------------------------------------------------------------------*/
 
 /* functionality to handle requests */
-void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfile_idx, hashmap* h){
+void handle_put_request(char* line, size_t bytes_read, char* dir, int* p_curfile_idx, hashmap* h){
 
   // create file entry from input
   file_entry f;
@@ -196,9 +199,9 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
   Fwrite((void*)&(f.timestamp), sizeof(int), 1, fp);
   Fwrite((void*)&(f.key_size), sizeof(int), 1, fp);
   Fwrite((void*)&(f.value_size), sizeof(int), 1, fp);
-  Fwrite((void*)(f.key.data), sizeof(byte), f.key.num_bytes, fp);
+  Fwrite((void*)(f.key_data), sizeof(byte), f.key_size, fp);
   long pos = Ftell(fp); // store offset (stored in keydir for fast reads)
-  Fwrite((void*)(f.value.data), sizeof(byte), f.value.num_bytes, fp);
+  Fwrite((void*)(f.value_data), sizeof(byte), f.value_size, fp);
 
   // close file
   fclose(fp);
@@ -211,12 +214,16 @@ void handle_put_request(char* line, ssize_t bytes_read, char* dir, int* p_curfil
   entry.timestamp = f.timestamp;
 
   // add entry to keydir
-  add_entry(h, &entry, &(f.key));
+  obj key;
+  key.num_bytes = f.key_size;
+  key.data = f.key_data;
+  // hashmap makes a copy of key
+  add_entry(h, &entry, &key);
   // display_hashmap(h);
 
 }
 
-bool handle_get_request(char* line, ssize_t bytes_read, char* dir, hashmap* h, obj* value){
+bool handle_get_request(char* line, size_t bytes_read, char* dir, hashmap* h, obj* value){
   // parse input
   char* iter = line;
   char* key_offset = NULL;
@@ -280,7 +287,7 @@ int main(){
   // handle user input
   size_t size = BUF_SIZE;
   char* line = malloc(size * sizeof(char));
-  ssize_t nread;
+  size_t nread;
   char dir[BUF_SIZE];
   bool dir_opened = false;
   
@@ -314,8 +321,8 @@ int main(){
       }
       else{
         if (is_not_empty_command(line, "put")){
-          char* occurence = ((char*)strstr(line, "put")) + strlen("put");
-          handle_put_request(occurence, nread, dir, &file_idx, h);
+          char* occurrence = ((char*)strstr(line, "put")) + strlen("put");
+          handle_put_request(occurrence, nread, dir, &file_idx, h);
         }
       }
     }
@@ -327,11 +334,10 @@ int main(){
       }
       else{
         if (is_not_empty_command(line, "get")){
-          char* occurence = ((char*)strstr(line, "get")) + strlen("get");
+          char* occurrence = ((char*)strstr(line, "get")) + strlen("get");
           obj value;
-          if (handle_get_request(occurence, nread, dir, h, &value)){
+          if (handle_get_request(occurrence, nread, dir, h, &value)){
             // for debugging
-            // printf("Value is:\n");
             display_obj("--->", &value, "\n", false);
             free(value.data);
           };
