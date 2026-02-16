@@ -45,7 +45,7 @@ hashmap* create_hashmap(int capacity, float threshold);
 /* displays all used entries in the hashmap */
 void display_hashmap(hashmap* h);
 
-/* add entry to hashmap */
+/* add entry to hashmap; creates a copy of key*/
 void add_entry(hashmap* h, keydir_entry* entry, obj* key);
 
 /* returns keydir entry if key is present in hashmap, NULL otherwise */

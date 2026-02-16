@@ -3,10 +3,13 @@
 #include "input_handling.h"
 #include "dir.h"
 #include "robust.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/types.h>
+#include <dirent.h>
 #include <time.h>
 
 /* functionality to display things */
@@ -33,7 +36,7 @@ void display_obj(char* prefix, obj* o, char* suffix, bool display_length){
 
 void display_file_entry(file_entry* f){
   // display a file entry
-  printf("Timestamp: %d\tKey Size:%d\tValue Size:%d\n", f->timestamp, f->key_size, f->value_size);
+  printf("Timestamp: %ld\tKey Size:%d\tValue Size:%d\n", f->timestamp, f->key_size, f->value_size);
   printf("Key details: \n");
   obj key;
   key.num_bytes = f->key_size;
@@ -77,6 +80,151 @@ void setup_dir(char* dir, int* p_file_idx){
   }
   // close .metadata file
   fclose(f);
+}
+
+int get_fileid_from_name(char* name){
+  if (name == NULL || !does_file_exist(name)){
+    return -1;
+  }
+
+  if (!(strstr(name, "file_"))){
+    return -1;
+  }
+
+  // find underscore
+  char* underscore = strchr(name, '_');
+  if (underscore == NULL){
+      return -1;
+  }
+
+  // Move past underscore
+  char* id_start = underscore + 1;
+  if (*id_start == '\0'){
+      return -1;
+  }
+  
+  char* iter = id_start;
+  while (*iter != '\0'){
+    if (!isdigit((unsigned char)*iter)) {
+        return -1;
+    }
+    iter++;
+  }
+
+  return atoi(id_start);
+}
+
+void read_entries_from_file(char* fname, hashmap* h){
+  // buf should be malloc'ed, because keys and value are variable length
+  // buf can be realloc'ed and its value should be read
+
+  if (!does_file_exist(fname)){
+    return;
+  }
+
+  // entry is stored as:
+  // <time_t timestamp><int key_sz><int val_sz><byte(varlen) key ><byte(varlen) val>
+
+  // open file
+  FILE* fp = Fopen(fname, "rb");
+  int fileid = get_fileid_from_name(fname);
+  if (fileid == -1){
+    return;
+  }
+
+  // create variables
+  fread_helper fbuf;
+  int bufsize = sizeof(byte) * 100;
+  char* buf = Malloc(bufsize);
+  size_t bytes_read;
+  keydir_entry entry;
+  obj key;
+
+  while ((bytes_read = fread(&fbuf, 1,  sizeof(fbuf), fp)) > 0){
+      entry.timestamp = fbuf.timestamp;
+      entry.value_size = fbuf.value_size;
+
+      int req_size = fbuf.key_size * sizeof(byte);
+      if (req_size > bufsize){
+        buf = Realloc((void*)buf, req_size);
+        bufsize = req_size;
+      }
+
+      // read key
+      if ((bytes_read = fread(buf, sizeof(byte), fbuf.key_size, fp)) > 0){
+        key.num_bytes = fbuf.key_size;
+        key.data = (byte*)buf;
+
+        // read val
+        entry.value_pos = ftell(fp);
+        entry.file_id = fileid;
+
+        // check whether key already exists in keydir
+        keydir_entry* curentry = get_entry(h, &key);
+        // if key doesn't exist in keydir, add it
+        // if key exists in keydir, but its timestamp is outdated, override it
+        if (curentry == NULL || (curentry->timestamp < entry.timestamp)){
+          // add key to keydir;
+          add_entry(h, &entry, &key);
+        }
+
+        // skip to next entry
+        fseek(fp, entry.value_size, SEEK_CUR);
+      }
+  }
+
+  // close file
+  fclose(fp);
+  // free heap memory
+  free(buf);
+}
+
+void build_keydir_from_dir(char* dir, hashmap* h){
+  // check if dir exists
+  if (!does_dir_exist(dir)){
+    printf("Dir %s doesn't exist. Can't build keydir!\n", dir);
+    return;
+  }
+
+  // check if .metadata exists
+  char fname[FILE_NAME_LIMIT];
+  sprintf(fname, "%s/%s", dir, ".metadata");
+  if (!does_file_exist(fname)){
+    printf("Dir %s doesn't have any files to build keydir from!\n", dir);
+    return;
+  }
+
+  // get active file from .metadata
+  int active_file_idx;
+  FILE* fp = Fopen(fname, "rb");
+  Fread(&active_file_idx, sizeof(int), 1, fp);
+  // close metadata file
+  fclose(fp);
+
+  if (active_file_idx == 0){
+    // dir has just been setup
+    return;
+  }
+
+  // scan over remaining files in dir
+  struct dirent *entry;
+  DIR *d = opendir(dir);
+  if (d == NULL) {
+      return;
+  }
+
+  while ((entry = readdir(d)) != NULL) {
+      // printf("Processing file %s\n",entry->d_name);
+      char fname[FILE_NAME_LIMIT];
+      sprintf(fname, "%s/%s", dir, entry->d_name);
+      int fid = get_fileid_from_name(fname);
+      if (fid != -1){
+        read_entries_from_file(fname, h);
+      
+      }
+  }
+  display_hashmap(h);
+  closedir(d);
 }
 
 int create_entry(char* line, size_t bytes_read, file_entry* f){
@@ -191,12 +339,12 @@ long write_to_file(file_entry* f,int entry_sz, char* dir, int* p_curfile_idx){
 
   // write data to file
   if (is_tombstone){
-    Fwrite((void*)&(f->timestamp), sizeof(int), 1, fp);
+    Fwrite((void*)&(f->timestamp), sizeof(time_t), 1, fp);
     Fwrite((void*)&(f->key_size), sizeof(int), 1, fp);
     Fwrite((void*)&(f->value_size), sizeof(int), 1, fp);
   }
   else{
-    Fwrite((void*)&(f->timestamp), sizeof(int), 1, fp);
+    Fwrite((void*)&(f->timestamp), sizeof(time_t), 1, fp);
     Fwrite((void*)&(f->key_size), sizeof(int), 1, fp);
     Fwrite((void*)&(f->value_size), sizeof(int), 1, fp);
     Fwrite((void*)(f->key_data), sizeof(byte), f->key_size, fp);
@@ -370,13 +518,14 @@ int main(){
     // for debugging
     /* printf("Retrieved line of length %zd:\n", nread);
        fwrite(line, nread, 1, stdout); */
-
     // open directory
     if (strstr(line, "open")){
       if (get_str_following_command(line, "open", dir)){
         handle_open_request(dir);
         dir_opened = true;
         file_idx = -1; // reset file_idx
+        // create in-memory hashmap from dir entries
+        build_keydir_from_dir(dir, h);
       };
     }
 

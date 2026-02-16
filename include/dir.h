@@ -13,7 +13,7 @@ bool does_dir_exist(char* name);
 bool create_dir(char* name);
 
 /* returns the size of file */
-unsigned long get_filesize(char* file);
+unsigned long get_filesize(char* fname);
 
 /*------------------------------------------------------------------------------------------------*/
 

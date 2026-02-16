@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 #define PERSIST_H
 #define FILE_NAME_LIMIT 40
 #define BUF_SIZE 50
@@ -18,13 +19,21 @@ typedef struct s_obj obj;
 
 // representation of file entry
 struct s_file_entry{
-    int timestamp;
+    time_t timestamp;
     int key_size;
     int value_size;
     byte* key_data;
     byte* value_data;
 };
 typedef struct s_file_entry file_entry;
+
+// helps read data from files
+struct s_fread_helper{
+  time_t timestamp;
+  int key_size;
+  int value_size;
+};
+typedef struct s_fread_helper fread_helper;
 
 /*------------------------------------------------------------------------------------------------*/
 

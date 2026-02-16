@@ -9,11 +9,12 @@ FILE* Fopen(char* fname, char* mode){
   return fp;
 }
 
-void Fread(void* buf, size_t size, size_t num_ele, FILE* fp){
+size_t Fread(void* buf, size_t size, size_t num_ele, FILE* fp){
   size_t bytesRead = fread(buf, size, num_ele, fp);
   if (bytesRead != num_ele){
-    perror("Error reading from file!\n");
+    perror("Error reading from file!:");
   }
+  return bytesRead;
 }
 
 void Fwrite(void* buf, size_t size, size_t num_ele, FILE* fp){

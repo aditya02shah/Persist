@@ -8,10 +8,10 @@
 #include <stdio.h>
 #include <errno.h>
 
-unsigned long get_filesize(char* file)
+unsigned long get_filesize(char* fname)
 {
   // ref - https://stackoverflow.com/a/8247
-    FILE * f = Fopen(file, "rb");
+    FILE * f = Fopen(fname, "rb");
     fseek(f, 0, SEEK_END);
     unsigned long len = (unsigned long)ftell(f);
     fclose(f);
