@@ -142,7 +142,6 @@ void read_entries_from_file(char* fname, hashmap* h){
 
   // read <timestamp><key_sz><val_sz> 
   while ((bytes_read = fread(&fbuf, 1,  sizeof(fbuf), fp)) > 0){
-
       // read key (varlen)
       int req_size = fbuf.key_size * sizeof(byte);
       if (req_size > bufsize){
@@ -164,15 +163,23 @@ void read_entries_from_file(char* fname, hashmap* h){
 
         // check whether key already exists in keydir
         keydir_entry* curentry = get_entry(h, &key);
-        // if key doesn't exist in keydir, add it
-        // if key exists in keydir, but its timestamp is outdated, override it
-        if (curentry == NULL || (curentry->timestamp < entry.timestamp)){
-          // add key to keydir;
-          add_entry(h, &entry, &key);
+        if (entry.value_size == 0){
+          // entry is a tombstone
+          // delete entry if current records timestamp is more recent than keydir's
+          if (curentry && curentry->timestamp < entry.timestamp){
+            delete_entry(h, &key);
+          }
         }
-
-        // skip to next entry
-        fseek(fp, entry.value_size, SEEK_CUR);
+        else{
+          // if key doesn't exist in keydir, add it
+          // if key exists in keydir, but its timestamp is outdated, update it
+          if (curentry == NULL || (curentry->timestamp < entry.timestamp)){
+            // add key to keydir;
+            add_entry(h, &entry, &key);
+          }
+            // skip to next entry
+            fseek(fp, entry.value_size, SEEK_CUR);
+        }
       }
   }
 
@@ -314,7 +321,7 @@ long write_to_file(file_entry* f,int entry_sz, char* dir, int* p_curfile_idx){
   fp = Fopen(fname, "ab");
 
   bool is_tombstone = false;
-  if (f->key_size == 0){
+  if (f->value_size == 0){
     is_tombstone = true;
   }
 
@@ -325,6 +332,7 @@ long write_to_file(file_entry* f,int entry_sz, char* dir, int* p_curfile_idx){
     Fwrite((void*)&(f->timestamp), sizeof(time_t), 1, fp);
     Fwrite((void*)&(f->key_size), sizeof(int), 1, fp);
     Fwrite((void*)&(f->value_size), sizeof(int), 1, fp);
+    Fwrite((void*)(f->key_data), sizeof(byte), f->key_size, fp);
   }
   else{
     Fwrite((void*)&(f->timestamp), sizeof(time_t), 1, fp);
@@ -350,7 +358,7 @@ void handle_put_request(char* line, size_t bytes_read, char* dir, int* p_curfile
   file_entry f;
   int entry_sz = create_entry(line, bytes_read, &f);
   if (entry_sz == -1){
-    printf("Invalid input: Enter as put <key> <value>\n");
+    printf("Invalid input: Syntax = put <key> <value>\n");
     printf("Example: put name xyz\n");
     return;
   }
@@ -458,7 +466,6 @@ void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curf
   obj key;
   key.data = (byte*)key_offset;
   key.num_bytes = key_sz;
-
   bool entry_exists = delete_entry(h, &key);
   if (!entry_exists){
     printf("Entry doesn't exist!\n");
@@ -469,9 +476,9 @@ void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curf
   // a tombstone is represented as an object of size 0, with its data ptr set to NULL
   file_entry f;
   f.timestamp = time(NULL);
-  f.key_size = 0;
+  f.key_size = key.num_bytes;
   f.value_size = 0;
-  f.key_data = NULL;
+  f.key_data = key.data;
   f.value_data = NULL;
 
   int entry_sz = sizeof(int) * 3;
@@ -498,9 +505,6 @@ int main(){
 
   // get user input 
   while ((nread = getline(&line, &size, stdin)) != -1){
-    // for debugging
-    /* printf("Retrieved line of length %zd:\n", nread);
-       fwrite(line, nread, 1, stdout); */
     // open directory
     if (strstr(line, "open")){
       if (get_str_following_command(line, "open", dir)){
