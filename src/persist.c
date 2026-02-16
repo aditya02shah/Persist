@@ -115,9 +115,7 @@ int get_fileid_from_name(char* name){
 }
 
 void read_entries_from_file(char* fname, hashmap* h){
-  // buf should be malloc'ed, because keys and value are variable length
-  // buf can be realloc'ed and its value should be read
-
+  // check whether file exists
   if (!does_file_exist(fname)){
     return;
   }
@@ -132,20 +130,23 @@ void read_entries_from_file(char* fname, hashmap* h){
     return;
   }
 
-  // create variables
+  // create variables 
   fread_helper fbuf;
-  int bufsize = sizeof(byte) * 100;
-  char* buf = Malloc(bufsize);
   size_t bytes_read;
   keydir_entry entry;
   obj key;
 
-  while ((bytes_read = fread(&fbuf, 1,  sizeof(fbuf), fp)) > 0){
-      entry.timestamp = fbuf.timestamp;
-      entry.value_size = fbuf.value_size;
+  // allocate dynamic memory, to handle variable-length keys
+  int bufsize = sizeof(byte) * 100;
+  char* buf = Malloc(bufsize);
 
+  // read <timestamp><key_sz><val_sz> 
+  while ((bytes_read = fread(&fbuf, 1,  sizeof(fbuf), fp)) > 0){
+
+      // read key (varlen)
       int req_size = fbuf.key_size * sizeof(byte);
       if (req_size > bufsize){
+        // obtain enough memory to store key
         buf = Realloc((void*)buf, req_size);
         bufsize = req_size;
       }
@@ -155,7 +156,9 @@ void read_entries_from_file(char* fname, hashmap* h){
         key.num_bytes = fbuf.key_size;
         key.data = (byte*)buf;
 
-        // read val
+        // create keydir entry
+        entry.timestamp = fbuf.timestamp;
+        entry.value_size = fbuf.value_size;
         entry.value_pos = ftell(fp);
         entry.file_id = fileid;
 
@@ -185,45 +188,25 @@ void build_keydir_from_dir(char* dir, hashmap* h){
     printf("Dir %s doesn't exist. Can't build keydir!\n", dir);
     return;
   }
-
-  // check if .metadata exists
-  char fname[FILE_NAME_LIMIT];
-  sprintf(fname, "%s/%s", dir, ".metadata");
-  if (!does_file_exist(fname)){
-    printf("Dir %s doesn't have any files to build keydir from!\n", dir);
-    return;
-  }
-
-  // get active file from .metadata
-  int active_file_idx;
-  FILE* fp = Fopen(fname, "rb");
-  Fread(&active_file_idx, sizeof(int), 1, fp);
-  // close metadata file
-  fclose(fp);
-
-  if (active_file_idx == 0){
-    // dir has just been setup
-    return;
-  }
-
-  // scan over remaining files in dir
+  
+  // scan over files in dir
   struct dirent *entry;
   DIR *d = opendir(dir);
   if (d == NULL) {
       return;
   }
 
+  // iterate over files in dir
   while ((entry = readdir(d)) != NULL) {
-      // printf("Processing file %s\n",entry->d_name);
       char fname[FILE_NAME_LIMIT];
       sprintf(fname, "%s/%s", dir, entry->d_name);
+      // check whether file has a valid name -> "file_id"
       int fid = get_fileid_from_name(fname);
       if (fid != -1){
+        // file is valid. process file
         read_entries_from_file(fname, h);
-      
       }
   }
-  display_hashmap(h);
   closedir(d);
 }
 
