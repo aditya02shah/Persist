@@ -130,15 +130,12 @@ void read_entries_from_file(char* fname, hashmap* h){
     return;
   }
 
-  // create variables 
-  fread_helper fbuf;
-  size_t bytes_read;
-  keydir_entry entry;
-  obj key;
-
   // allocate dynamic memory, to handle variable-length keys
   int bufsize = sizeof(byte) * 100;
   char* buf = Malloc(bufsize);
+
+  fread_helper fbuf;
+  size_t bytes_read;
 
   // read <timestamp><key_sz><val_sz> 
   while ((bytes_read = fread(&fbuf, 1,  sizeof(fbuf), fp)) > 0){
@@ -150,12 +147,14 @@ void read_entries_from_file(char* fname, hashmap* h){
         bufsize = req_size;
       }
 
+      obj key;
       // read key
       if ((bytes_read = fread(buf, sizeof(byte), fbuf.key_size, fp)) > 0){
         key.num_bytes = fbuf.key_size;
         key.data = (byte*)buf;
 
         // create keydir entry
+        keydir_entry entry;
         entry.timestamp = fbuf.timestamp;
         entry.value_size = fbuf.value_size;
         entry.value_pos = ftell(fp);
@@ -419,7 +418,7 @@ bool handle_get_request(char* line, size_t bytes_read, char* dir, hashmap* h, ob
   int file_id = entry->file_id;
   int value_size = entry->value_size;
   long value_pos = entry->value_pos;
-  time_t timestamp = entry->timestamp;
+  // time_t timestamp = entry->timestamp;
 
   // check whether file exists
   char fname[FILE_NAME_LIMIT];
