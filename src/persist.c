@@ -361,9 +361,6 @@ void handle_put_request(char* line, size_t bytes_read, char* dir, int* p_curfile
     printf("Example: put name xyz\n");
     return;
   }
-  
-  // setup .metadata file
-  setup_dir(dir, p_curfile_idx);
 
   // write entry to file
   long pos = write_to_file(&f, entry_sz, dir, p_curfile_idx);
@@ -510,6 +507,7 @@ int main(){
         handle_open_request(dir);
         dir_opened = true;
         file_idx = -1; // reset file_idx
+        setup_dir(dir, &file_idx);
         // create in-memory hashmap from dir entries
         build_keydir_from_dir(dir, h);
       };
