@@ -1,10 +1,11 @@
 #ifndef PERSIST_H
+#define PERSIST_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
-#define PERSIST_H
 #define FILE_NAME_LIMIT 40
+#define MAX_FILE_MERGE 100
 #define BUF_SIZE 50
 #define FILE_SIZE (1024) // 1 KB
 typedef uint8_t byte;

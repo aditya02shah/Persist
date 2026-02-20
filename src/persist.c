@@ -480,6 +480,183 @@ void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curf
   int entry_sz = sizeof(int) * 3;
   write_to_file(&f, entry_sz, dir, p_curfile_idx);
 }
+
+void handle_merge_request(char* line, char* dir, hashmap* h){
+   // input validation
+  char* iter = line;
+  while (*iter == ' '){
+    iter++;
+  }
+
+  if (*iter != '\0' && *iter != '\n'){
+    printf("Invalid input. Example use: merge\n");
+    return;
+  }
+
+  // determine active file in dir
+  char fname[FILE_NAME_LIMIT];
+  sprintf(fname, "%s/%s", dir, ".metadata");
+  if (!does_file_exist(fname)){
+    // freshly opened dir. no data to merge
+    return;
+  }
+  int active_file_idx = -1;
+  FILE* f = Fopen(fname, "rb");
+  Fread(&active_file_idx, sizeof(int), 1, f);
+  // printf("Active file is: %d\n", active_file_idx);
+
+  // get list of inactive files in in descending order
+  struct dirent **namelist;
+  int n;
+
+  n = scandir(dir, &namelist, NULL, alphasort);
+  if (n == -1) {
+      perror("scandir");
+      exit(EXIT_FAILURE);
+  }
+
+   // store fileids for the inactive files to be merged, in descending order
+  int merge_fid[MAX_FILE_MERGE];
+  int idx = -1;
+  
+  while (n--) {
+      sprintf(fname, "%s/%s", dir, namelist[n]->d_name);
+      int file_id = get_fileid_from_name(fname);
+
+      if (file_id != -1 && file_id != active_file_idx){
+        idx++;
+        merge_fid[idx] = file_id;
+        // printf("%s\n", namelist[n]->d_name);
+      }
+      free(namelist[n]);
+  }
+  free(namelist);
+
+  // perform the merge operation
+  char wf_name[FILE_NAME_LIMIT]; // file to read from
+  char rf_name[FILE_NAME_LIMIT]; // file to write to
+
+  int merge_idx = 0;
+  size_t bytes_written = 0;
+
+  sprintf(fname, "merge_%d", merge_idx);
+  sprintf(wf_name, "%s/%s", dir, fname);
+  // printf("**Writing to %s\n", wf_name);
+  FILE* fw = Fopen(wf_name, "wb");
+  FILE* fr;
+  
+  // allocate dynamic memory, to handle variable-length keys & values
+  int kbuf_size = sizeof(byte) * 100;
+  char* kbuf = Malloc(kbuf_size);
+  int vbuf_size = sizeof(byte) * 100;
+  char* vbuf = Malloc(vbuf_size);
+  
+  fread_helper fbuf;
+  size_t bytes_read;
+
+  // iterate through list of inactive files
+  // for each file, only keep the entries which are the latest copies
+  for (int i = 0; i <= idx; i++){
+
+    int file_id = merge_fid[i];   // current file being processed
+    sprintf(fname, "file_%d", file_id);
+    sprintf(rf_name, "%s/%s", dir, fname);
+    // printf("Reading from %s\n", rf_name);
+ 
+    // read record from fr
+    fr = Fopen(rf_name, "rb");
+
+    // iterate through all entries in the current file
+    while ((bytes_read = fread(&fbuf, 1,  sizeof(fbuf), fr)) > 0){
+      // read key (varlen)
+      int req_size = fbuf.key_size * sizeof(byte);
+      if (req_size > kbuf_size){
+        // obtain enough memory to store key
+        kbuf = Realloc((void*)kbuf, req_size);
+        kbuf_size = req_size;
+      }
+
+      obj key;
+      // read key
+      if ((bytes_read = fread(kbuf, sizeof(byte), fbuf.key_size, fr)) > 0){
+        key.num_bytes = fbuf.key_size;
+        key.data = (byte*)kbuf;
+        // display_obj("Key read!\n", &key, "\n", true);
+
+        // compare entry with hashmap entry to check whether it is uptodate
+        keydir_entry* curentry = get_entry(h, &key);
+        if (fbuf.value_size != 0 && curentry && curentry->timestamp == fbuf.timestamp && file_id == curentry->file_id){   
+          // this is the latest entry. retain it
+
+          req_size = fbuf.value_size * sizeof(byte);
+          if (req_size > vbuf_size){
+          // obtain enough memory to store value
+            vbuf = Realloc((void*)vbuf, req_size);
+            vbuf_size = req_size;
+          }
+
+          // read value
+          obj value;
+          if ((bytes_read = fread(vbuf, sizeof(byte), fbuf.value_size, fr)) > 0){
+            value.num_bytes = fbuf.value_size;
+            value.data = (byte*)vbuf;
+            // display_obj("Value read!\n", &value, "\n", true);
+            
+            long pos = Ftell(fw); // store offset
+            // write record to fw
+            Fwrite((void*)&(fbuf.timestamp), sizeof(time_t), 1, fw);
+            Fwrite((void*)&(fbuf.key_size), sizeof(int), 1, fw);
+            Fwrite((void*)&(fbuf.value_size), sizeof(int), 1, fw);
+            Fwrite((void*)(key.data), sizeof(byte), fbuf.key_size, fw);
+            Fwrite((void*)(value.data), sizeof(byte), fbuf.value_size, fw);
+            // printf("Wrote value!\n");
+
+            // update the keydir entry, since the entry was copied to another file
+            keydir_entry entry;
+            entry.timestamp = fbuf.timestamp;
+            entry.value_size = fbuf.value_size;
+            entry.value_pos = pos;
+            entry.file_id = merge_idx;
+            add_entry(h, &entry, &key);
+            // printf("Added entry to hashmap!\n");
+          }
+        }  
+      }
+      else{
+        // skip to next entry
+        fseek(fr, fbuf.value_size, SEEK_CUR);
+      }
+
+      // create new write file if we have exceeded file size
+      bytes_written += sizeof(fbuf) + fbuf.key_size + fbuf.value_size;
+      // printf("Bytes written: %zu\n", bytes_written);
+      if ((unsigned long)bytes_written >= FILE_SIZE){
+        // close write file and open new one
+        fclose(fw);
+        merge_idx++;
+        bytes_written = 0; // reset counter
+
+        sprintf(fname, "merge_%d", merge_idx);
+        sprintf(wf_name, "%s/%s", dir, fname);
+        // printf("Creating new write file for merge: %s\n", wf_name);
+        fw = Fopen(wf_name, "wb");
+      }
+    }
+    fclose(fr);
+  }
+
+  // release used resources
+  fclose(fr);
+  fclose(fw);
+  free(kbuf);
+  free(vbuf);
+
+  // rename temp files
+
+  // delete temp files
+
+  // adjust .metadata
+}
 /*------------------------------------------------------------------------------------------------*/
 
 /* interactive loop to get user input */
@@ -510,6 +687,7 @@ int main(){
         setup_dir(dir, &file_idx);
         // create in-memory hashmap from dir entries
         build_keydir_from_dir(dir, h);
+        // display_hashmap(h);
       };
     }
 
@@ -554,6 +732,19 @@ int main(){
         if (is_not_empty_command(line, "delete")){
           char* occurrence = ((char*)strstr(line, "delete")) + strlen("delete");
           handle_delete_request(occurrence, nread, dir, &file_idx, h);
+        }
+      }
+    }
+
+    // merge files in dir
+    if (strstr(line, "merge")){
+      if (!dir_opened){
+        printf("No directory selected!\n");
+      }
+      else{
+        if (is_not_empty_command(line, "merge")){
+          char* occurrence = ((char*)strstr(line, "merge")) + strlen("merge");
+          handle_merge_request(occurrence, dir, h);
         }
       }
     }

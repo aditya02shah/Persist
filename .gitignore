@@ -2,3 +2,5 @@
 persist
 demo*/
 *.txt
+.vscode/
+comp/
