@@ -388,7 +388,6 @@ void handle_put_request(char* line, size_t bytes_read, char* dir, int* p_curfile
   key.data = f.key_data;
   // hashmap makes a copy of key
   add_entry(h, &entry, &key);
-  // display_hashmap(h);
 
 }
 
@@ -425,7 +424,6 @@ bool handle_get_request(char* line, size_t bytes_read, char* dir, hashmap* h, ob
   int file_id = entry->file_id;
   int value_size = entry->value_size;
   long value_pos = entry->value_pos;
-  // time_t timestamp = entry->timestamp;
 
   // check whether file exists
   char fname[FILE_NAME_LIMIT];
@@ -445,8 +443,12 @@ bool handle_get_request(char* line, size_t bytes_read, char* dir, hashmap* h, ob
 
   // read value
   Fseek(fp, value_pos, SEEK_SET);
-  Fread((void*)(value->data), sizeof(byte), value_size, fp);
-
+  if (!(fread((void*)(value->data), sizeof(byte), value_size, fp) > 0)){
+    perror("Read failed: ");
+  }
+  // close file
+  fclose(fp);
+ 
   return true;
 }
 
@@ -474,6 +476,7 @@ void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curf
   key.num_bytes = key_sz;
   bool entry_exists = delete_entry(h, &key);
   if (!entry_exists){
+    display_obj("deleting key which doesnt exist: ", &key, "\n", true);
     printf("Entry doesn't exist!\n");
     return;
   }
@@ -481,7 +484,6 @@ void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curf
   // write tombstone to file
   // a tombstone is represented as an object of size 0, with its data ptr set to NULL
   file_entry f;
-  // f.timestamp = time(NULL);
   f.timestamp = now_ns(CLOCK_MONOTONIC);
   f.key_size = key.num_bytes;
   f.value_size = 0;
@@ -514,7 +516,6 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   int active_file_idx = -1;
   FILE* f = Fopen(fname, "rb");
   Fread(&active_file_idx, sizeof(int), 1, f);
-  // printf("Active file is: %d\n", active_file_idx);
 
   // get list of inactive files in in descending order
   struct dirent **namelist;
@@ -526,7 +527,7 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
       exit(EXIT_FAILURE);
   }
 
-   // store fileids for the inactive files to be merged, in descending order
+  // store fileids for the inactive files to be merged, in descending order
   int merge_fid[MAX_FILE_MERGE];
   int idx = -1;
   
@@ -537,7 +538,6 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
       if (file_id != -1 && file_id != active_file_idx){
         idx++;
         merge_fid[idx] = file_id;
-        // printf("%s\n", namelist[n]->d_name);
       }
       free(namelist[n]);
   }
@@ -552,7 +552,6 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
 
   sprintf(fname, "merge_%d", merge_idx);
   sprintf(wf_name, "%s/%s", dir, fname);
-  // printf("**Writing to %s\n", wf_name);
   FILE* fw = Fopen(wf_name, "wb");
   FILE* fr;
   
@@ -568,11 +567,9 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   // iterate through list of inactive files
   // for each file, only keep the entries which are the latest copies
   for (int i = 0; i <= idx; i++){
-
     int file_id = merge_fid[i];   // current file being processed
     sprintf(fname, "file_%d", file_id);
     sprintf(rf_name, "%s/%s", dir, fname);
-    // printf("Reading from %s\n", rf_name);
  
     // read record from fr
     fr = Fopen(rf_name, "rb");
@@ -592,20 +589,17 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
       if ((bytes_read = fread(kbuf, sizeof(byte), fbuf.key_size, fr)) > 0){
         key.num_bytes = fbuf.key_size;
         key.data = (byte*)kbuf;
-        // display_obj("Key read!\n", &key, "\n", true);
 
         // compare entry with hashmap entry to check whether it is uptodate
         keydir_entry* curentry = get_entry(h, &key);
-        long value_pos = Ftell(fr);
         if (
           fbuf.value_size != 0 && 
           curentry && 
-          value_pos == curentry->value_pos && 
+          curentry->timestamp == fbuf.timestamp && 
           file_id == curentry->file_id
         )
         {   
           // this is the latest entry. retain it
-
           req_size = fbuf.value_size * sizeof(byte);
           if (req_size > vbuf_size){
           // obtain enough memory to store value
@@ -618,8 +612,6 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
           if ((bytes_read = fread(vbuf, sizeof(byte), fbuf.value_size, fr)) > 0){
             value.num_bytes = fbuf.value_size;
             value.data = (byte*)vbuf;
-            // display_obj("Value read!\n", &value, "\n", true);
-            // printf("Read timestamp:%lld\tHashtable timestamp:%lld\n", fbuf.timestamp, curentry->timestamp);
       
             // write record to fw
             Fwrite((void*)&(fbuf.timestamp), sizeof(int64_t), 1, fw);
@@ -628,50 +620,45 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
             Fwrite((void*)(key.data), sizeof(byte), fbuf.key_size, fw);
             long pos = Ftell(fw); // store offset
             Fwrite((void*)(value.data), sizeof(byte), fbuf.value_size, fw);
-            // printf("Wrote value!\n");
 
             // update the keydir entry, since the entry was copied to another file
             keydir_entry entry;
             entry.timestamp = fbuf.timestamp;
             entry.value_size = fbuf.value_size;
-            entry.value_pos = pos;
-            entry.file_id = merge_idx;
+            entry.value_pos = pos;     // new pos of entry
+            entry.file_id = merge_idx; // new file entry resides in
             add_entry(h, &entry, &key);
-            // printf("Added entry to hashmap!\n");
-            }
-          }  
+
+            // create new write file if we have exceeded file size
+            bytes_written += sizeof(fbuf) + fbuf.key_size + fbuf.value_size;
+            if ((unsigned long)bytes_written >= FILE_SIZE){
+              // close write file and open new one
+              fclose(fw);
+              merge_idx++;
+              bytes_written = 0; // reset counter
+
+              sprintf(fname, "merge_%d", merge_idx);
+              sprintf(wf_name, "%s/%s", dir, fname);
+              fw = Fopen(wf_name, "wb");
+            };
+          }
+        }  
       }
       else{
         // skip to next entry
         fseek(fr, fbuf.value_size, SEEK_CUR);
       }
-
-      // create new write file if we have exceeded file size
-      bytes_written += sizeof(fbuf) + fbuf.key_size + fbuf.value_size;
-      // printf("Bytes written: %zu\n", bytes_written);
-      if ((unsigned long)bytes_written >= FILE_SIZE){
-        // close write file and open new one
-        fclose(fw);
-        merge_idx++;
-        bytes_written = 0; // reset counter
-
-        sprintf(fname, "merge_%d", merge_idx);
-        sprintf(wf_name, "%s/%s", dir, fname);
-        // printf("Creating new write file for merge: %s\n", wf_name);
-        fw = Fopen(wf_name, "wb");
-      }
     }
+    // close the file we just processed
     fclose(fr);
-    Remove(rf_name); // delete file since we have copied its data
   }
 
   // release used resources
-  fclose(fr);
   fclose(fw);
   free(kbuf);
   free(vbuf);
 
-  // rename merge files to "file_fileno" format
+  // rename merge files to "file_fileno" format. this overwrites the files we just copied over
   char oldname[FILE_NAME_LIMIT];
   char newname[FILE_NAME_LIMIT];
   for (int i = 0; i <= merge_idx; i++){
@@ -680,7 +667,6 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
 
     sprintf(fname, "%s_%d", "file", i);
     sprintf(newname, "%s/%s", dir, fname);
-
     Rename(oldname, newname);
   }
 }
@@ -789,3 +775,6 @@ int main(){
   
   return 0;
 }
+
+// add hint file functionality
+// read hint file on startup

@@ -18,6 +18,20 @@ uint32_t fnv1a_hash(const uint8_t *key, size_t len){
   return hash;
 }
 
+void display_entry(keydir_entry* entry){
+  if (entry == NULL){
+    return;
+  }
+
+  printf(
+        "FileID: %d\tValue Size:%d\tValue pos:%lu\tTimestamp:%lld\n", 
+        entry->file_id,
+        entry->value_size,
+        entry->value_pos,
+        entry->timestamp
+      );
+}
+
 void display_hashmap(hashmap* h){
   printf("Hashmap Utilization: %d / %d\n", h->cursize, h->capacity);
   for (int i = 0; i < h->capacity; i++){
@@ -26,11 +40,11 @@ void display_hashmap(hashmap* h){
       printf("Key: ");
       display_obj(NULL, &(h->map[i].key), "\t", false);
       printf(
-        "FileID: %d\tValue Size:%d\tValue pos:%lu\tTimestamp:%s", 
+        "FileID: %d\tValue Size:%d\tValue pos:%lu\tTimestamp:%lld\n", 
         h->map[i].entry.file_id,
         h->map[i].entry.value_size,
         h->map[i].entry.value_pos,
-        ctime(&(h->map[i].entry.timestamp))
+        h->map[i].entry.timestamp
       );
     }
   }
