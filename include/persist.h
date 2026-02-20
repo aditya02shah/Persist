@@ -19,7 +19,7 @@ typedef struct{
 
 // representation of file entry
 typedef struct{
-    time_t timestamp;
+    int64_t timestamp;
     int key_size;
     int value_size;
     byte* key_data;
@@ -28,7 +28,7 @@ typedef struct{
 
 // helps read data from files
 typedef struct{
-  time_t timestamp;
+  int64_t timestamp;
   int key_size;
   int value_size;
 }fread_helper;

@@ -36,7 +36,7 @@ void display_obj(char* prefix, obj* o, char* suffix, bool display_length){
 
 void display_file_entry(file_entry* f){
   // display a file entry
-  printf("Timestamp: %ld\tKey Size:%d\tValue Size:%d\n", f->timestamp, f->key_size, f->value_size);
+  printf("Timestamp: %lld\tKey Size:%d\tValue Size:%d\n", f->timestamp, f->key_size, f->value_size);
   printf("Key details: \n");
   obj key;
   key.num_bytes = f->key_size;
@@ -49,6 +49,15 @@ void display_file_entry(file_entry* f){
   value.data = f->value_data;
   display_obj(NULL, &value, NULL, false);
   printf("\n");
+}
+
+// helps get high resolution time
+static inline int64_t
+now_ns(clockid_t clock_id)
+{
+    struct timespec ts;
+    clock_gettime(clock_id, &ts);
+    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 /*------------------------------------------------------------------------------------------------*/
 
@@ -220,7 +229,8 @@ int create_entry(char* line, size_t bytes_read, file_entry* f){
   // create a file_entry, and fill it with information from the line buf
   // returns -1 if input is in invalid format, size of entry otherwise
 
-  f->timestamp = time(NULL);
+  // f->timestamp = time(NULL);
+  f->timestamp = now_ns(CLOCK_MONOTONIC);
 
   int entry_sz = 0; // in bytes
   size_t i = 0; // helps with input validation
@@ -328,13 +338,13 @@ long write_to_file(file_entry* f,int entry_sz, char* dir, int* p_curfile_idx){
 
   // write data to file
   if (is_tombstone){
-    Fwrite((void*)&(f->timestamp), sizeof(time_t), 1, fp);
+    Fwrite((void*)&(f->timestamp), sizeof(int64_t), 1, fp);
     Fwrite((void*)&(f->key_size), sizeof(int), 1, fp);
     Fwrite((void*)&(f->value_size), sizeof(int), 1, fp);
     Fwrite((void*)(f->key_data), sizeof(byte), f->key_size, fp);
   }
   else{
-    Fwrite((void*)&(f->timestamp), sizeof(time_t), 1, fp);
+    Fwrite((void*)&(f->timestamp), sizeof(int64_t), 1, fp);
     Fwrite((void*)&(f->key_size), sizeof(int), 1, fp);
     Fwrite((void*)&(f->value_size), sizeof(int), 1, fp);
     Fwrite((void*)(f->key_data), sizeof(byte), f->key_size, fp);
@@ -471,7 +481,8 @@ void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curf
   // write tombstone to file
   // a tombstone is represented as an object of size 0, with its data ptr set to NULL
   file_entry f;
-  f.timestamp = time(NULL);
+  // f.timestamp = time(NULL);
+  f.timestamp = now_ns(CLOCK_MONOTONIC);
   f.key_size = key.num_bytes;
   f.value_size = 0;
   f.key_data = key.data;
@@ -608,9 +619,10 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
             value.num_bytes = fbuf.value_size;
             value.data = (byte*)vbuf;
             // display_obj("Value read!\n", &value, "\n", true);
+            // printf("Read timestamp:%lld\tHashtable timestamp:%lld\n", fbuf.timestamp, curentry->timestamp);
       
             // write record to fw
-            Fwrite((void*)&(fbuf.timestamp), sizeof(time_t), 1, fw);
+            Fwrite((void*)&(fbuf.timestamp), sizeof(int64_t), 1, fw);
             Fwrite((void*)&(fbuf.key_size), sizeof(int), 1, fw);
             Fwrite((void*)&(fbuf.value_size), sizeof(int), 1, fw);
             Fwrite((void*)(key.data), sizeof(byte), fbuf.key_size, fw);

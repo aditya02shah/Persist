@@ -10,7 +10,7 @@ typedef struct{
     int file_id;
     int value_size;
     long value_pos;
-    time_t timestamp;
+    int64_t timestamp;
 }keydir_entry;
 
 // representation of an entry in the hashmap - contains metadata, key and keydir_entry
@@ -38,6 +38,9 @@ typedef struct{
 
 /* creates a hashmap of size capacity, which doubles itself once size reaches threshold */
 hashmap* create_hashmap(int capacity, float threshold);
+
+/* displays the hashmap entry*/
+void display_entry(keydir_entry* entry);
 
 /* displays all used entries in the hashmap */
 void display_hashmap(hashmap* h);
