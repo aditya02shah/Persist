@@ -66,3 +66,17 @@ void Fseek(FILE* fp, long offset, int mode){
     perror("Fseek failed: ");
   }
 }
+
+void Remove(const char* path){
+  int status = remove(path);
+  if (status != 0){
+    perror("Remove failed: ");
+  }
+}
+
+void Rename(const char *oldpath, const char *newpath){
+  int status = rename(oldpath, newpath);
+  if (status != 0){
+    perror("Rename failed: ");
+  }
+}

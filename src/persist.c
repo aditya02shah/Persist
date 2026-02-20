@@ -585,7 +585,14 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
 
         // compare entry with hashmap entry to check whether it is uptodate
         keydir_entry* curentry = get_entry(h, &key);
-        if (fbuf.value_size != 0 && curentry && curentry->timestamp == fbuf.timestamp && file_id == curentry->file_id){   
+        long value_pos = Ftell(fr);
+        if (
+          fbuf.value_size != 0 && 
+          curentry && 
+          value_pos == curentry->value_pos && 
+          file_id == curentry->file_id
+        )
+        {   
           // this is the latest entry. retain it
 
           req_size = fbuf.value_size * sizeof(byte);
@@ -601,13 +608,13 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
             value.num_bytes = fbuf.value_size;
             value.data = (byte*)vbuf;
             // display_obj("Value read!\n", &value, "\n", true);
-            
-            long pos = Ftell(fw); // store offset
+      
             // write record to fw
             Fwrite((void*)&(fbuf.timestamp), sizeof(time_t), 1, fw);
             Fwrite((void*)&(fbuf.key_size), sizeof(int), 1, fw);
             Fwrite((void*)&(fbuf.value_size), sizeof(int), 1, fw);
             Fwrite((void*)(key.data), sizeof(byte), fbuf.key_size, fw);
+            long pos = Ftell(fw); // store offset
             Fwrite((void*)(value.data), sizeof(byte), fbuf.value_size, fw);
             // printf("Wrote value!\n");
 
@@ -619,8 +626,8 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
             entry.file_id = merge_idx;
             add_entry(h, &entry, &key);
             // printf("Added entry to hashmap!\n");
-          }
-        }  
+            }
+          }  
       }
       else{
         // skip to next entry
@@ -643,6 +650,7 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
       }
     }
     fclose(fr);
+    Remove(rf_name); // delete file since we have copied its data
   }
 
   // release used resources
@@ -651,11 +659,18 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   free(kbuf);
   free(vbuf);
 
-  // rename temp files
+  // rename merge files to "file_fileno" format
+  char oldname[FILE_NAME_LIMIT];
+  char newname[FILE_NAME_LIMIT];
+  for (int i = 0; i <= merge_idx; i++){
+    sprintf(fname, "%s_%d", "merge", i);
+    sprintf(oldname, "%s/%s", dir, fname);
 
-  // delete temp files
+    sprintf(fname, "%s_%d", "file", i);
+    sprintf(newname, "%s/%s", dir, fname);
 
-  // adjust .metadata
+    Rename(oldname, newname);
+  }
 }
 /*------------------------------------------------------------------------------------------------*/
 
@@ -687,7 +702,7 @@ int main(){
         setup_dir(dir, &file_idx);
         // create in-memory hashmap from dir entries
         build_keydir_from_dir(dir, h);
-        // display_hashmap(h);
+        display_hashmap(h);
       };
     }
 
