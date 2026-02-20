@@ -6,30 +6,27 @@
 
 /*------------------------------------------------------------------------------------------------*/
 // representation of keydir (an in-memory hashmap) entry
-struct s_keydir_entry{
+typedef struct{
     int file_id;
     int value_size;
     long value_pos;
     time_t timestamp;
-};
-typedef struct s_keydir_entry keydir_entry;
+}keydir_entry;
 
 // representation of an entry in the hashmap - contains metadata, key and keydir_entry
-struct s_hashmap_entry{
+typedef struct{
     bool used;
     obj key;
     keydir_entry entry;
-};
-typedef struct s_hashmap_entry hashmap_entry;
+}hashmap_entry;
 
 // representation of the hashmap
-struct s_hashmap{
+typedef struct{
     int capacity;
     int cursize;
     float threshold;
-    struct s_hashmap_entry* map; // points to the base of the map
-};
-typedef struct s_hashmap hashmap;
+    hashmap_entry* map; // points to the base of the map
+}hashmap;
 
 /*------------------------------------------------------------------------------------------------*/
 

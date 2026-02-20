@@ -12,29 +12,26 @@ typedef uint8_t byte;
 
 /*------------------------------------------------------------------------------------------------*/
 // representation of obj - a length-prefixed byte array
-struct s_obj{
+typedef struct{
   int num_bytes;
   byte* data; // dynamically allocate if necessary
-};
-typedef struct s_obj obj;
+}obj;
 
 // representation of file entry
-struct s_file_entry{
+typedef struct{
     time_t timestamp;
     int key_size;
     int value_size;
     byte* key_data;
     byte* value_data;
-};
-typedef struct s_file_entry file_entry;
+}file_entry;
 
 // helps read data from files
-struct s_fread_helper{
+typedef struct{
   time_t timestamp;
   int key_size;
   int value_size;
-};
-typedef struct s_fread_helper fread_helper;
+}fread_helper;
 
 /*------------------------------------------------------------------------------------------------*/
 
