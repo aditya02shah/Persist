@@ -123,28 +123,50 @@ int get_fileid_from_name(char* name){
   return atoi(id_start);
 }
 
-void read_entries_from_file(char* fname, hashmap* h){
-  // check whether file exists
-  if (!does_file_exist(fname)){
+void read_entries_from_file(char* fname, char* hfname, hashmap* h){
+
+  int fileid = get_fileid_from_name(fname);
+  bool read_from_hintfile = false;
+
+  if (fileid == -1){
+    // invalid file
     return;
   }
 
-  // entry is stored as:
-  // <time_t timestamp><int key_sz><int val_sz><byte(varlen) key ><byte(varlen) val>
+  // check whether hint file exists
+  if (does_file_exist(hfname)){
+    // read entries from hint file, because its faster
+    read_from_hintfile = true;
+  }
+
+  // check whether file exists
+  if (!read_from_hintfile && !does_file_exist(fname)){
+    return;
+  }
 
   // open file
-  FILE* fp = Fopen(fname, "rb");
-  int fileid = get_fileid_from_name(fname);
-  if (fileid == -1){
-    return;
+  FILE* fp = NULL;
+  if (read_from_hintfile){
+    // open hint file
+    fp = Fopen(hfname, "rb");
   }
-
+  else{
+    // open merge file
+    fp = Fopen(fname, "rb");
+  }
+ 
   // allocate dynamic memory, to handle variable-length keys
   int bufsize = sizeof(byte) * 100;
   char* buf = Malloc(bufsize);
 
   fread_helper fbuf;
   size_t bytes_read;
+
+  // in hint file, entry is stored as:
+  // <int64_t timestamp> <int key_sz> <int val_sz> <long value_pos> <byte(varlen) key>
+
+  // in merge file, entry is stored as:
+  // <int64_t timestamp> <int key_sz> <int val_sz> <byte(varlen) key > <byte(varlen) val>
 
   // read <timestamp><key_sz><val_sz> 
   while ((bytes_read = fread(&fbuf, 1,  sizeof(fbuf), fp)) > 0){
@@ -154,6 +176,14 @@ void read_entries_from_file(char* fname, hashmap* h){
         // obtain enough memory to store key
         buf = Realloc((void*)buf, req_size);
         bufsize = req_size;
+      }
+
+      long pos = -1;
+      // read pos, if we are reading from hintfile
+      if (read_from_hintfile){
+        if ((bytes_read = fread(&pos, sizeof(long), 1, fp)) <= 0){
+          return;
+        }
       }
 
       obj key;
@@ -166,7 +196,9 @@ void read_entries_from_file(char* fname, hashmap* h){
         keydir_entry entry;
         entry.timestamp = fbuf.timestamp;
         entry.value_size = fbuf.value_size;
-        entry.value_pos = ftell(fp);
+        if (!read_from_hintfile){
+          entry.value_pos = ftell(fp);
+        }
         entry.file_id = fileid;
 
         // check whether key already exists in keydir
@@ -186,7 +218,9 @@ void read_entries_from_file(char* fname, hashmap* h){
             add_entry(h, &entry, &key);
           }
             // skip to next entry
-            fseek(fp, entry.value_size, SEEK_CUR);
+            if (!read_from_hintfile){
+              fseek(fp, entry.value_size, SEEK_CUR);
+            }
         }
       }
   }
@@ -213,13 +247,15 @@ void build_keydir_from_dir(char* dir, hashmap* h){
 
   // iterate over files in dir
   while ((entry = readdir(d)) != NULL) {
-      char fname[FILE_NAME_LIMIT];
+      char fname[FILE_NAME_LIMIT];  // merge file
+      char hfname[FILE_NAME_LIMIT]; // hint file
       sprintf(fname, "%s/%s", dir, entry->d_name);
       // check whether file has a valid name -> "file_id"
       int fid = get_fileid_from_name(fname);
       if (fid != -1){
         // file is valid. process file
-        read_entries_from_file(fname, h);
+        sprintf(hfname, "%s/%s_%d", dir, "hint", fid);
+        read_entries_from_file(fname, hfname, h);
       }
   }
   closedir(d);
@@ -477,7 +513,6 @@ void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curf
   bool entry_exists = delete_entry(h, &key);
   if (!entry_exists){
     display_obj("deleting key which doesnt exist: ", &key, "\n", true);
-    printf("Entry doesn't exist!\n");
     return;
   }
 
@@ -495,7 +530,11 @@ void handle_delete_request(char* line, size_t bytes_read, char* dir, int* p_curf
 }
 
 void handle_merge_request(char* line, char* dir, hashmap* h){
-   // input validation
+  // the merge operation discards the unused entries in a file
+  // it also creates a "hint file" corresponding to each "merge file"
+  // this allows for a quicker startup time, as keydir is built more quickly
+
+  // input validation
   char* iter = line;
   while (*iter == ' '){
     iter++;
@@ -544,16 +583,25 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   free(namelist);
 
   // perform the merge operation
-  char wf_name[FILE_NAME_LIMIT]; // file to read from
-  char rf_name[FILE_NAME_LIMIT]; // file to write to
+  char rf_name[FILE_NAME_LIMIT]; // file to read from
+  char wf_name[FILE_NAME_LIMIT]; // merge file
+  char hf_name[FILE_NAME_LIMIT]; // hint file
 
-  int merge_idx = 0;
+  int merge_idx = 0; // track the file we are writing to (aka "merge file")
+  int hint_idx = 0;  // track the "hint file" for corresponding "merge file" 
   size_t bytes_written = 0;
 
+  // open merge file
   sprintf(fname, "merge_%d", merge_idx);
   sprintf(wf_name, "%s/%s", dir, fname);
   FILE* fw = Fopen(wf_name, "wb");
-  FILE* fr;
+
+  // open hint file
+  sprintf(fname, "hint_%d", hint_idx);
+  sprintf(hf_name, "%s/%s", dir, fname);
+  FILE* fh = Fopen(hf_name, "wb");
+
+  FILE* fr = NULL;
   
   // allocate dynamic memory, to handle variable-length keys & values
   int kbuf_size = sizeof(byte) * 100;
@@ -565,7 +613,7 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   size_t bytes_read;
 
   // iterate through list of inactive files
-  // for each file, only keep the entries which are the latest copies
+  // for each file, only keep the entries which are actively in-use
   for (int i = 0; i <= idx; i++){
     int file_id = merge_fid[i];   // current file being processed
     sprintf(fname, "file_%d", file_id);
@@ -613,13 +661,20 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
             value.num_bytes = fbuf.value_size;
             value.data = (byte*)vbuf;
       
-            // write record to fw
+            // write record to merge file
             Fwrite((void*)&(fbuf.timestamp), sizeof(int64_t), 1, fw);
             Fwrite((void*)&(fbuf.key_size), sizeof(int), 1, fw);
             Fwrite((void*)&(fbuf.value_size), sizeof(int), 1, fw);
             Fwrite((void*)(key.data), sizeof(byte), fbuf.key_size, fw);
             long pos = Ftell(fw); // store offset
             Fwrite((void*)(value.data), sizeof(byte), fbuf.value_size, fw);
+
+            // write record to hint file
+            Fwrite((void*)&(fbuf.timestamp), sizeof(int64_t), 1, fh);
+            Fwrite((void*)&(fbuf.key_size), sizeof(int), 1, fh);
+            Fwrite((void*)&(fbuf.value_size), sizeof(int), 1, fh);
+            Fwrite((void*)&pos, sizeof(long), 1, fh);
+            Fwrite((void*)(key.data), sizeof(byte), fbuf.key_size, fh);
 
             // update the keydir entry, since the entry was copied to another file
             keydir_entry entry;
@@ -636,10 +691,16 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
               fclose(fw);
               merge_idx++;
               bytes_written = 0; // reset counter
-
               sprintf(fname, "merge_%d", merge_idx);
               sprintf(wf_name, "%s/%s", dir, fname);
               fw = Fopen(wf_name, "wb");
+
+              // close hint file and open new one
+              fclose(fh);
+              hint_idx++;
+              sprintf(fname, "hint_%d", hint_idx);
+              sprintf(hf_name, "%s/%s", dir, fname);
+              fh = Fopen(hf_name, "wb");
             };
           }
         }  
@@ -655,6 +716,7 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
 
   // release used resources
   fclose(fw);
+  fclose(fh);
   free(kbuf);
   free(vbuf);
 
@@ -700,7 +762,7 @@ int main(){
         setup_dir(dir, &file_idx);
         // create in-memory hashmap from dir entries
         build_keydir_from_dir(dir, h);
-        display_hashmap(h);
+        // display_hashmap(h);
       };
     }
 
@@ -775,6 +837,3 @@ int main(){
   
   return 0;
 }
-
-// add hint file functionality
-// read hint file on startup
