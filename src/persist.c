@@ -76,7 +76,7 @@ void setup_dir(char* dir, int* p_file_idx){
   FILE* f = NULL;
   
   // if .metadata file exists, read current file_idx from it
-  sprintf(fname, "%s/%s", dir, ".metadata");
+  snprintf(fname, FILE_NAME_LIMIT, "%s/%s", dir, ".metadata");
   if (does_file_exist(fname)){
     f = Fopen(fname, "rb");
     Fread(p_file_idx, sizeof(int), 1, f);
@@ -249,12 +249,12 @@ void build_keydir_from_dir(char* dir, hashmap* h){
   while ((entry = readdir(d)) != NULL) {
       char fname[FILE_NAME_LIMIT];  // merge file
       char hfname[FILE_NAME_LIMIT]; // hint file
-      sprintf(fname, "%s/%s", dir, entry->d_name);
+      snprintf(fname, FILE_NAME_LIMIT, "%s/%s", dir, entry->d_name);
       // check whether file has a valid name -> "file_id"
       int fid = get_fileid_from_name(fname);
       if (fid != -1){
         // file is valid. process file
-        sprintf(hfname, "%s/%s_%d", dir, "hint", fid);
+        snprintf(hfname, FILE_NAME_LIMIT, "%s/%s_%d", dir, "hint", fid);
         read_entries_from_file(fname, hfname, h);
       }
   }
@@ -338,7 +338,7 @@ long write_to_file(file_entry* f,int entry_sz, char* dir, int* p_curfile_idx){
 
   // get current file size
   char fname[FILE_NAME_LIMIT];
-  sprintf(fname, "%s/file_%d", dir, *p_curfile_idx);
+  snprintf(fname, FILE_NAME_LIMIT, "%s/file_%d", dir, *p_curfile_idx);
   unsigned long fsize = 0;
 
   if (does_file_exist(fname)){
@@ -354,12 +354,12 @@ long write_to_file(file_entry* f,int entry_sz, char* dir, int* p_curfile_idx){
     (*p_curfile_idx)++; // increment file_idx
 
     // update .metadata file with new file_idx
-    sprintf(fname, "%s/%s", dir, ".metadata");
+    snprintf(fname, FILE_NAME_LIMIT, "%s/%s", dir, ".metadata");
     fp = Fopen(fname, "wb");
     Fwrite(p_curfile_idx, sizeof(int), 1, fp);
     fclose(fp);
 
-    sprintf(fname, "%s/file_%d", dir, *p_curfile_idx); // reset fname
+    snprintf(fname, FILE_NAME_LIMIT, "%s/file_%d", dir, *p_curfile_idx); // reset fname
   }
 
   // open file
@@ -463,7 +463,7 @@ bool handle_get_request(char* line, size_t bytes_read, char* dir, hashmap* h, ob
 
   // check whether file exists
   char fname[FILE_NAME_LIMIT];
-  sprintf(fname, "%s/file_%d", dir, file_id);
+  snprintf(fname, FILE_NAME_LIMIT, "%s/file_%d", dir, file_id);
 
   if (!does_file_exist(fname)){
     printf("Invalid entry!\n");
@@ -547,7 +547,7 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
 
   // determine active file in dir
   char fname[FILE_NAME_LIMIT];
-  sprintf(fname, "%s/%s", dir, ".metadata");
+  snprintf(fname, FILE_NAME_LIMIT, "%s/%s", dir, ".metadata");
   if (!does_file_exist(fname)){
     // freshly opened dir. no data to merge
     return;
@@ -571,7 +571,7 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   int idx = -1;
   
   while (n--) {
-      sprintf(fname, "%s/%s", dir, namelist[n]->d_name);
+      snprintf(fname, FILE_NAME_LIMIT, "%s/%s", dir, namelist[n]->d_name);
       int file_id = get_fileid_from_name(fname);
 
       if (file_id != -1 && file_id != active_file_idx){
@@ -592,13 +592,13 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   size_t bytes_written = 0;
 
   // open merge file
-  sprintf(fname, "merge_%d", merge_idx);
-  sprintf(wf_name, "%s/%s", dir, fname);
+  snprintf(fname, FILE_NAME_LIMIT, "merge_%d", merge_idx);
+  snprintf(wf_name,FILE_NAME_LIMIT, "%s/%s", dir, fname);
   FILE* fw = Fopen(wf_name, "wb");
 
   // open hint file
-  sprintf(fname, "hint_%d", hint_idx);
-  sprintf(hf_name, "%s/%s", dir, fname);
+  snprintf(fname, FILE_NAME_LIMIT, "hint_%d", hint_idx);
+  snprintf(hf_name, FILE_NAME_LIMIT, "%s/%s", dir, fname);
   FILE* fh = Fopen(hf_name, "wb");
 
   FILE* fr = NULL;
@@ -616,8 +616,8 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   // for each file, only keep the entries which are actively in-use
   for (int i = 0; i <= idx; i++){
     int file_id = merge_fid[i];   // current file being processed
-    sprintf(fname, "file_%d", file_id);
-    sprintf(rf_name, "%s/%s", dir, fname);
+    snprintf(fname, FILE_NAME_LIMIT, "file_%d", file_id);
+    snprintf(rf_name, FILE_NAME_LIMIT, "%s/%s", dir, fname);
  
     // read record from fr
     fr = Fopen(rf_name, "rb");
@@ -691,15 +691,15 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
               fclose(fw);
               merge_idx++;
               bytes_written = 0; // reset counter
-              sprintf(fname, "merge_%d", merge_idx);
-              sprintf(wf_name, "%s/%s", dir, fname);
+              snprintf(fname, FILE_NAME_LIMIT, "merge_%d", merge_idx);
+              snprintf(wf_name, FILE_NAME_LIMIT, "%s/%s", dir, fname);
               fw = Fopen(wf_name, "wb");
 
               // close hint file and open new one
               fclose(fh);
               hint_idx++;
-              sprintf(fname, "hint_%d", hint_idx);
-              sprintf(hf_name, "%s/%s", dir, fname);
+              snprintf(fname, FILE_NAME_LIMIT, "hint_%d", hint_idx);
+              snprintf(hf_name, FILE_NAME_LIMIT, "%s/%s", dir, fname);
               fh = Fopen(hf_name, "wb");
             };
           }
@@ -724,11 +724,11 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
   char oldname[FILE_NAME_LIMIT];
   char newname[FILE_NAME_LIMIT];
   for (int i = 0; i <= merge_idx; i++){
-    sprintf(fname, "%s_%d", "merge", i);
-    sprintf(oldname, "%s/%s", dir, fname);
+    snprintf(fname, FILE_NAME_LIMIT, "%s_%d", "merge", i);
+    snprintf(oldname, FILE_NAME_LIMIT, "%s/%s", dir, fname);
 
-    sprintf(fname, "%s_%d", "file", i);
-    sprintf(newname, "%s/%s", dir, fname);
+    snprintf(fname, FILE_NAME_LIMIT, "%s_%d", "file", i);
+    snprintf(newname, FILE_NAME_LIMIT, "%s/%s", dir, fname);
     Rename(oldname, newname);
   }
 }
