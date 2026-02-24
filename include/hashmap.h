@@ -13,9 +13,15 @@ typedef struct{
     int64_t timestamp;
 }keydir_entry;
 
+typedef enum{
+    empty = 0,
+    used = 1,
+    deleted = 2
+}slot_status;
+
 // representation of an entry in the hashmap - contains metadata, key and keydir_entry
 typedef struct{
-    bool used;
+    slot_status status;
     obj key;
     keydir_entry entry;
 }hashmap_entry;
@@ -27,6 +33,8 @@ typedef struct{
     float threshold;
     hashmap_entry* map; // points to the base of the map
 }hashmap;
+
+
 
 /*------------------------------------------------------------------------------------------------*/
 

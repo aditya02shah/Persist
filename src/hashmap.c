@@ -36,7 +36,7 @@ void display_hashmap(hashmap* h){
   printf("Hashmap Utilization: %d / %d\n", h->cursize, h->capacity);
   for (int i = 0; i < h->capacity; i++){
     // if entry used
-    if (h->map[i].used){
+    if (h->map[i].status == used){
       printf("Key: ");
       display_obj(NULL, &(h->map[i].key), "\t", false);
       printf(
@@ -51,6 +51,7 @@ void display_hashmap(hashmap* h){
 }
 
 bool keys_are_equal(obj* key1, obj* key2){
+  // display_obj("Key2 is: ", key2, "\n", true);
   // checks whether two obj keys are equal
   if (key1->num_bytes != key2->num_bytes){
     return false;
@@ -84,7 +85,7 @@ void expand_hashmap(hashmap* h){
 
   // iterate through original map
   for (int i = 0; i < org_capacity; i++){
-    if (h->map[i].used){
+    if (h->map[i].status == used){
       hashmap_entry* curslot = &(h->map[i]);
       obj curkey = curslot->key;
       keydir_entry curentry = curslot->entry;
@@ -96,7 +97,7 @@ void expand_hashmap(hashmap* h){
       int idx = start;
 
       // linear probing
-      while (newmap[idx].used){
+      while (newmap[idx].status == used){
         // if entry already used and key is not the same, look for the next unused one
         idx = (idx + 1) % h->capacity;
         if (idx == start) {
@@ -110,7 +111,7 @@ void expand_hashmap(hashmap* h){
       dst->key.num_bytes = curkey.num_bytes;
       dst->key.data = curkey.data;    // we dont free cause we copy the ptr to malloc'ed data
       memcpy(&(dst->entry), &curentry, sizeof(keydir_entry));
-      dst->used = true;
+      dst->status = used;
       h->cursize++;
     }
   }
@@ -119,8 +120,6 @@ void expand_hashmap(hashmap* h){
   free(h->map);
   // update our ptr
   h->map = newmap;
-
-  // display_hashmap(h);
 }
 /*------------------------------------------------------------------------------------------------*/
 
@@ -145,7 +144,7 @@ void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
   int idx = start;
 
   // linear probing
-  while ((h->map[idx].used) && (!keys_are_equal(key, &(h->map[idx].key)))){
+  while ((h->map[idx].status == used) && (!keys_are_equal(key, &(h->map[idx].key)))){
     // if slot already used and its key is not the same, go the next slot
     idx = (idx + 1) % h->capacity;
     if (idx == start) {
@@ -164,8 +163,7 @@ void add_entry(hashmap* h, keydir_entry* new_entry, obj* key){
   dst->key.data = Calloc(key->num_bytes, sizeof(byte));
   memcpy(dst->key.data, key->data, sizeof(byte) * key->num_bytes);
   memcpy(&(dst->entry), new_entry, sizeof(keydir_entry));
-
-  dst->used = true;
+  dst->status = used;
 
   if (!is_update){
     // if key was added to new slot, increment cursize
@@ -187,7 +185,10 @@ keydir_entry* get_entry(hashmap* h, obj* key){
   int start = hash % h->capacity;
   int idx = start;
 
-  while (!keys_are_equal(key, &(h->map[idx].key))){
+  while (h->map[idx].status != empty){
+    if (h->map[idx].status == used && keys_are_equal(key, &(h->map[idx].key))){
+      return &(h->map[idx].entry);
+    }
     idx = (idx + 1) % h->capacity;
     if (idx == start){
       // entry doesn't exist
@@ -195,7 +196,7 @@ keydir_entry* get_entry(hashmap* h, obj* key){
     }
   }
 
-  return &(h->map[idx].entry);
+  return NULL;
 }
 
 bool delete_entry(hashmap* h, obj* key){
@@ -206,7 +207,7 @@ bool delete_entry(hashmap* h, obj* key){
   int start = hash % h->capacity;
   int idx = start;
 
-  while (!keys_are_equal(key, &(h->map[idx].key))){
+  while (h->map[idx].status == used && !keys_are_equal(key, &(h->map[idx].key))){
     idx = (idx + 1) % h->capacity;
     if (idx == start){
       // entry doesn't exist
@@ -214,8 +215,9 @@ bool delete_entry(hashmap* h, obj* key){
     }
   }
 
-  h->map[idx].used = false;
+  h->map[idx].status = deleted;
   free(h->map[idx].key.data);
+  h->map[idx].key.data = NULL;
   h->cursize--;
 
   return true;
@@ -225,10 +227,9 @@ void free_hashmap(hashmap* h){
   // visit every node and free its key.data
   for (int i = 0; i < h->capacity; i++){
     // if entry used
-    if (h->map[i].used){
+    if (h->map[i].status == used){
       free(h->map[i].key.data);
     }
   }
   free(h->map);
-  free(h);
 }
