@@ -51,7 +51,6 @@ void display_hashmap(hashmap* h){
 }
 
 bool keys_are_equal(obj* key1, obj* key2){
-  // display_obj("Key2 is: ", key2, "\n", true);
   // checks whether two obj keys are equal
   if (key1->num_bytes != key2->num_bytes){
     return false;
@@ -60,6 +59,9 @@ bool keys_are_equal(obj* key1, obj* key2){
   // perform a byte-wise comparison
   int i = 0;
   int num_bytes = key1->num_bytes;
+  if (key1->data == NULL || key2->data == NULL){
+    return false;
+  }
   byte* iter_1 = key1->data;
   byte* iter_2 = key2->data;
 

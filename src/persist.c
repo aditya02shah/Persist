@@ -182,6 +182,7 @@ void read_entries_from_file(char* fname, char* hfname, hashmap* h){
       // read pos, if we are reading from hintfile
       if (read_from_hintfile){
         if ((bytes_read = fread(&pos, sizeof(long), 1, fp)) <= 0){
+          free(buf);
           return;
         }
       }
