@@ -453,7 +453,7 @@ bool handle_get_request(char* line, size_t bytes_read, char* dir, hashmap* h, ob
 
   keydir_entry* entry = get_entry(h, &key);
   if (!entry){
-    printf("Entry doesn't exist!\n");
+    // printf("Entry doesn't exist!\n");
     return false;
   }
 
@@ -812,7 +812,7 @@ int main(){
       }
     }
 
-    // merge files in dir
+    // merge files in directory
     if (strstr(line, "merge")){
       if (!dir_opened){
         printf("No directory selected!\n");
