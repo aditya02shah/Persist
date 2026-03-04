@@ -1,0 +1,256 @@
+open test0
+put player1 Lionel_Messi
+put player2 Cristiano_Ronaldo
+put player3 Neymar_Jr
+put player4 Kylian_Mbappe
+put player5 Erling_Haaland
+put player6 Kevin_DeBruyne
+put player7 Mohamed_Salah
+put player8 Robert_Lewandowski
+put player9 Harry_Kane
+put player10 Karim_Benzema
+put player11 Luka_Modric
+put player12 Sergio_Ramos
+put player13 Andres_Iniesta
+put player14 Zinedine_Zidane
+put player15 Ronaldinho_Gaucho
+put player16 Thierry_Henry
+put player17 David_Beckham
+put player18 Wayne_Rooney
+put player19 Didier_Drogba
+put player20 Samuel_Eto
+put player21 Paolo_Maldini
+put player22 Francesco_Totti
+put player23 Alessandro_DelPiero
+put player24 Andrea_Pirlo
+put player25 Xavi_Hernandez
+put player26 Gerard_Pique
+put player27 Raul_Gonzalez
+put player28 Iker_Casillas
+put player29 Thomas_Muller
+put player30 Joshua_Kimmich
+put player31 Jude_Bellingham
+put player32 Phil_Foden
+put player33 Marcus_Rashford
+put player34 Bukayo_Saka
+put player35 Antoine_Griezmann
+put player36 Olivier_Giroud
+put player37 Luis_Suarez
+put player38 Edinson_Cavani
+put player39 Angel_DiMaria
+put player40 Carlos_Tevez
+put player41 Rivaldo_Ferreira
+put player42 Romario_Souza
+put player43 Kaka_Santos
+put player44 Gareth_Bale
+put player45 Eden_Hazard
+put player46 Arjen_Robben
+put player47 Frank_Lampard
+put player48 Clarence_Seedorf
+put player49 Dennis_Bergkamp
+put player50 Patrick_Vieira
+put player51 Ruud_VanNistelrooy
+put player52 Marco_VanBasten
+put player53 Fabio_Cannavaro
+put player54 Gianluigi_Buffon
+put player55 Giorgio_Chiellini
+put player56 Leonardo_Bonucci
+put player57 Cafu_Romario
+put player58 Roberto_Carlos
+put player59 Hernan_Crespo
+put player60 Gabriel_Batistuta
+put player61 Diego_Maradona
+put player62 Mario_Balotelli
+put player63 Ciro_Immobile
+put player64 Lorenzo_Insigne
+put player65 Paulo_Dybala
+put player66 Vinicius_Junior
+put player67 Rodrygo_Goes
+put player68 Casemiro_Santos
+put player69 Toni_Kroos
+put player70 Bastian_Schweinsteiger
+put player71 Miroslav_Klose
+put player72 Manuel_Neuer
+put player73 Mesut_Ozil
+put player74 Alexis_Sanchez
+put player75 Arturo_Vidal
+put player76 Claudio_Marchisio
+put player77 Radamel_Falcao
+put player78 James_Rodriguez
+put player79 Heungmin_Son
+put player80 Sadio_Mane
+put player81 Riyad_Mahrez
+put player82 Pierre_Aubameyang
+put player83 Alexandre_Lacazette
+put player84 Zlatan_Ibrahimovic
+put player85 Romelu_Lukaku
+put player86 Thibaut_Courtois
+put player87 Petr_Cech
+put player88 Jan_Oblak
+put player89 Ashley_Cole
+put player90 John_Terry
+put player91 Rio_Ferdinand
+put player92 Nemanja_Vidic
+put player93 Wesley_Sneijder
+put player94 Robin_VanPersie
+put player95 Dirk_Kuyt
+put player96 Hugo_Lloris
+put player97 Keylor_Navas
+put player98 Gianluca_Vialli
+put player99 Ruud_Gullit
+put player100 kukukuduku
+put player1 Lionel_Messi_v2
+put player1 Lionel_Messi_v3
+put player1 GOAT_MESSI_FINAL
+put player2 Cristiano_Ronaldo_v2
+put player2 CR7_LEGEND
+put player2 SIUUUUUUU
+put player23 Alessandro_DelPiero_v2
+put player23 KROSEEEEE
+put player23 FINAL_DELPIERO
+put player32 Phil_Foden_v2
+put player32 mygoattttt
+put player32 SUPERSTAR_FODEN
+put player80 Sadio_Mane_v2
+put player80 SALAHHHHHH
+put player80 EGYPTIAN_KING_FINAL
+put player10 Karim_Benzema_v2
+delete player10
+put player10 BENZEMA_COMEBACK
+put player10 BENZEMA_FINAL_VERSION
+put player44 Gareth_Bale_v2
+put player44 BALE_GOLF_MODE
+delete player44
+put player44 BALE_RESTORED
+put player50 Patrick_Vieira_v2
+delete player50
+delete player50
+put player50 VIEIRA_RETURNED
+put player70 Bastian_Schweinsteiger_v2
+put player70 SCHWEINI_LEGEND
+delete player70
+put player70 SCHWEINI_FINAL
+put player5 Erling_Haaland_SUPER_LONG_VALUE_VERSION_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+put player5 HAALAND_UPDATE_YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+put player5 HAALAND_FINAL
+put player61 Diego_Maradona_v2
+put player61 MARADONA_HAND_OF_GOD
+put player61 MARADONA_FINAL_VERSION_LONG_LONG_LONG
+delete player3
+delete player4
+delete player6
+delete player7
+delete player8
+delete player9
+delete player12
+delete player13
+delete player14
+delete player15
+delete player21
+delete player22
+delete player24
+delete player25
+delete player26
+put player3 Neymar_Return
+put player4 Mbappe_Return
+put player25 Xavi_Return
+put player26 Pique_Return
+put player72 Manuel_Neuer_v2
+put player72 NEUER_SWEEPER_KEEPER
+put player72 NEUER_FINAL
+put player86 Thibaut_Courtois_v2
+put player86 COURTOIS_FINAL
+put player96 Hugo_Lloris_v2
+delete player96
+put player96 LLORIS_RETURNED
+put player96 LLORIS_FINAL
+put player99 Ruud_Gullit_v2
+put player99 Ruud_Gullit_v3
+put player99 Ruud_Gullit_v4
+put player99 Ruud_Gullit_v5
+put player99 FINAL_GULLIT
+delete player92
+put player92 VIDIC_REBORN
+delete player92
+put player92 FINAL_VIDIC
+delete player27
+put player27 Raul_Return
+delete player27
+delete player29
+put player29 Muller_Return
+put player29 Muller_Final
+put player40 Tevez_v2
+put player41 Rivaldo_v2
+put player42 Romario_v2
+put player43 Kaka_v2
+put player45 Hazard_v2
+put player46 Robben_v2
+put player47 Lampard_v2
+put player48 Seedorf_v2
+put player49 Bergkamp_v2
+delete player41
+delete player42
+delete player43
+delete player45
+delete player46
+put player43 KAKA_FINAL
+put player45 HAZARD_FINAL
+put player1 MESSI_LAST_WRITE
+put player2 RONALDO_LAST_WRITE
+put player5 HAALAND_LAST_WRITE
+put player23 DELPIERO_LAST_WRITE
+put player32 FODEN_LAST_WRITE
+put player80 SALAH_LAST_WRITE
+get player1
+get player2
+get player3
+get player4
+get player5
+get player10
+get player23
+get player25
+get player26
+get player29
+get player32
+get player40
+get player43
+get player45
+get player47
+get player48
+get player49
+get player50
+get player61
+get player72
+get player80
+get player86
+get player92
+get player96
+get player99
+get separator
+merge
+get player1
+get player2
+get player3
+get player4
+get player5
+get player10
+get player23
+get player25
+get player26
+get player29
+get player32
+get player40
+get player43
+get player45
+get player47
+get player48
+get player49
+get player50
+get player61
+get player72
+get player80
+get player86
+get player92
+get player96
+get player99
+exit
