@@ -467,7 +467,7 @@ bool handle_get_request(char* line, size_t bytes_read, char* dir, hashmap* h, ob
   snprintf(fname, FILE_NAME_LIMIT, "%s/file_%d", dir, file_id);
 
   if (!does_file_exist(fname)){
-    printf("Invalid entry!\n");
+    // printf("Invalid entry!\n");
     return false;
   }
 
@@ -739,7 +739,7 @@ void handle_merge_request(char* line, char* dir, hashmap* h){
 int main(){
   // handle user input
   size_t size = BUF_SIZE;
-  char* line = malloc(size * sizeof(char));
+  char* line = Malloc(size * sizeof(char));
   size_t nread;
   char dir[BUF_SIZE];
   bool dir_opened = false;
@@ -827,7 +827,7 @@ int main(){
   
     // exit cli
     if (strcmp(line, "exit\n") == 0){
-      printf("Exiting db!\n");
+      printf("Exiting!\n");
       break;
     }
   }
